@@ -29,6 +29,15 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
 
   const allowedFunctionsUnqualified = new Set<string>();
   const allowedFunctionsQualified = new Set<string>();
+
+  if (policy.allowedFunctions !== undefined && !Array.isArray(policy.allowedFunctions)) {
+    return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
+  }
+
+  if (policy.allowedStatements !== undefined && !Array.isArray(policy.allowedStatements)) {
+    return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
+  }
+
   for (const fn of policy.allowedFunctions ?? []) {
     const canonicalFunction = canonicalizeFunctionEntry(fn);
     if (!canonicalFunction) {

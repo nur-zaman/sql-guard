@@ -20,6 +20,7 @@ export function parseSql(sql: string, dialect: 'postgresql' = 'postgresql'): Par
       statements: [],
       error: {
         message: error instanceof Error ? error.message : 'Parse error',
+        location: extractParserErrorLocation(error),
       },
     };
   }
@@ -49,4 +50,23 @@ function asRecord(value: unknown): Record<string, unknown> {
     return value as Record<string, unknown>;
   }
   return {};
+}
+
+function extractParserErrorLocation(error: unknown): { line: number; column: number } | undefined {
+  if (!error || typeof error !== 'object') return undefined;
+
+  const loc = (error as any).location;
+
+  // node-sql-parser: { start: { line, column }, end: ... }
+  const start = loc && typeof loc === 'object' ? (loc as any).start : undefined;
+  if (start && typeof start.line === 'number' && typeof start.column === 'number') {
+    return { line: start.line, column: start.column };
+  }
+
+  // Fallback: some parsers use { line, column } directly
+  if (loc && typeof loc === 'object' && typeof loc.line === 'number' && typeof loc.column === 'number') {
+    return { line: loc.line, column: loc.column };
+  }
+
+  return undefined;
 }

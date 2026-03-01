@@ -32,7 +32,16 @@ export function normalizeTableReference(
   }
 
   if (policy.resolver) {
-    const resolved = policy.resolver(ref.name);
+    let resolved: string | null;
+    try {
+      resolved = policy.resolver(ref.name);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        success: false,
+        error: `Resolver threw while resolving '${ref.name}': ${msg}`,
+      };
+    }
 
     if (typeof resolved === 'string' && resolved.trim().length > 0) {
       const parsed = parseQualifiedName(resolved);
