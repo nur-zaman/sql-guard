@@ -33,6 +33,18 @@ export const miscPolicyFixtures: PolicyFixture[] = [
     expected: { ok: false, errorCode: ErrorCode.TABLE_NOT_ALLOWED },
   },
   {
+    name: 'invalid policy rejects unqualified allowlisted table',
+    sql: 'SELECT * FROM public.users',
+    policy: {
+      allowedTables: ['users'],
+    },
+    expected: {
+      ok: false,
+      errorCode: ErrorCode.INVALID_POLICY,
+      violationMessageIncludes: "allowedTables entries must be schema-qualified",
+    },
+  },
+  {
     name: 'SELECT allowed by statement policy',
     sql: 'SELECT * FROM public.users',
     policy: {

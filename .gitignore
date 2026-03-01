@@ -7,3 +7,7 @@ dist/
 coverage/
 bun.lockb
 *.tgz
+.npm-cache/
+.npm-cache/_update-notifier-last-checked
+.npm-cache/_cacache/content-v2/sha512/1f/f7/48ea4278da926bca68f94079d8853531195e1e3d94e9f65243257ebf0155a7bc4fe1fbfe593ecc05600990919b1e78622195aa574ec66c897129e9aeb8a2
+.npm-cache/_cacache/index-v5/a9/7f/e06e9e9e709bf06fd3669621cf250a4bbc7ce9c2ec5204b43e1712fd434c

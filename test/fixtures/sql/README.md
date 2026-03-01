@@ -26,6 +26,7 @@ Each fixture exports an object with this structure:
 - Subqueries (scalar, IN, EXISTS, correlated)
 - JOINs (inner, left, right, full, cross, self-join)
 - Quoted identifiers
-- Schema-qualified names
+- Strict schema-qualified table allowlists (`schema.table` required)
 - Statement policy outcomes (select/insert/update/delete)
-- Resolver path validation (unqualified table resolution)
+- Resolver path validation (unqualified query table resolution)
+- Invalid policy handling (`INVALID_POLICY`)

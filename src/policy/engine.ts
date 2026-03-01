@@ -1,9 +1,12 @@
 import { parseSql } from '../parser/adapter';
-import { checkFunctionsAllowed } from './function';
+import { checkFunctionsAllowedCompiled } from './function';
 import { normalizeTableReference, isTableAllowed } from '../normalize/identifier';
 import { checkMultiStatementPolicy, isStatementAllowed } from './statement';
 import { checkUnsupportedFeatures } from './fail-closed';
-import { ErrorCode, Policy, ValidationResult, Violation } from '../index';
+import { ErrorCode } from '../types/public';
+import { compilePolicy } from './compile-policy';
+import type { CompiledPolicy } from './compile-policy';
+import type { Policy, ValidationResult, Violation } from '../types/public';
 
 export interface EngineResult {
   ok: boolean;
@@ -14,6 +17,16 @@ export interface EngineResult {
 const METADATA_SCHEMAS = new Set(['information_schema', 'pg_catalog']);
 
 export function validateAgainstPolicy(sql: string, policy: Policy): ValidationResult {
+  const compiledPolicyResult = compilePolicy(policy);
+  if (!compiledPolicyResult.success) {
+    return {
+      ok: false,
+      violations: [compiledPolicyResult.violation],
+      errorCode: compiledPolicyResult.errorCode,
+    };
+  }
+
+  const compiledPolicy = compiledPolicyResult.compiled;
   const parsed = parseSql(sql);
   if (!parsed.success) {
     const parseViolation: Violation = {
@@ -95,8 +108,12 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
         continue;
       }
 
-      const metadataDenied = isMetadataTableDenied(normalized.table.schema, normalized.table.fullyQualified, policy);
-      const tableAllowed = isTableAllowed(normalized.table, policy.allowedTables);
+      const metadataDenied = isMetadataTableDenied(
+        normalized.table.schema,
+        normalized.table.fullyQualified,
+        compiledPolicy
+      );
+      const tableAllowed = isTableAllowed(normalized.table, compiledPolicy.allowedTables);
 
       if (metadataDenied || !tableAllowed) {
         const message = metadataDenied
@@ -117,7 +134,7 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
       }
     }
 
-    const functionCheck = checkFunctionsAllowed(statement.functions, policy);
+    const functionCheck = checkFunctionsAllowedCompiled(statement.functions, compiledPolicy);
     if (!functionCheck.allowed) {
       for (const violation of functionCheck.violations) {
         pushViolation(
@@ -147,13 +164,12 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
   };
 }
 
-function isMetadataTableDenied(schema: string, fullyQualified: string, policy: Policy): boolean {
+function isMetadataTableDenied(schema: string, fullyQualified: string, policy: CompiledPolicy): boolean {
   if (!METADATA_SCHEMAS.has(schema.toLowerCase())) {
     return false;
   }
 
-  const allowed = new Set((policy.allowedTables ?? []).map((table) => table.toLowerCase().trim()));
-  return !allowed.has(fullyQualified.toLowerCase());
+  return !policy.allowedTables.has(fullyQualified.toLowerCase());
 }
 
 function pushViolation(
@@ -188,16 +204,18 @@ function precedenceOf(errorCode: ErrorCode): number {
   switch (errorCode) {
     case ErrorCode.PARSE_ERROR:
       return 0;
-    case ErrorCode.STATEMENT_NOT_ALLOWED:
+    case ErrorCode.INVALID_POLICY:
       return 1;
-    case ErrorCode.TABLE_NOT_ALLOWED:
+    case ErrorCode.STATEMENT_NOT_ALLOWED:
       return 2;
-    case ErrorCode.FUNCTION_NOT_ALLOWED:
+    case ErrorCode.TABLE_NOT_ALLOWED:
       return 3;
-    case ErrorCode.MULTI_STATEMENT_DISABLED:
+    case ErrorCode.FUNCTION_NOT_ALLOWED:
       return 4;
+    case ErrorCode.MULTI_STATEMENT_DISABLED:
+      return 5;
     case ErrorCode.UNSUPPORTED_SQL_FEATURE:
     default:
-      return 5;
+      return 6;
   }
 }

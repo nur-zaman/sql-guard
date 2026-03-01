@@ -9,7 +9,8 @@ const esmResult = await Bun.build({
   format: "esm",
   target: "node",
   splitting: false,
-  sourcemap: "external",
+  sourcemap: "none",
+  external: ["node-sql-parser"],
 });
 
 if (!esmResult.success) {
@@ -22,7 +23,8 @@ const cjsResult = await Bun.build({
   format: "cjs",
   target: "node",
   splitting: false,
-  sourcemap: "external",
+  sourcemap: "none",
+  external: ["node-sql-parser"],
 });
 
 if (!cjsResult.success) {

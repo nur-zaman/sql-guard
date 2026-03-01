@@ -1,4 +1,4 @@
-import { ErrorCode } from '../index';
+import { ErrorCode } from '../types/public';
 
 export interface UnsupportedCheckResult {
   supported: boolean;

@@ -5,11 +5,11 @@ import { ErrorCode, Policy } from '../src/index';
 
 describe('function extraction and policy', () => {
   test('allows configured function', () => {
-    const parsed = parseSql('SELECT lower(name) FROM users');
+    const parsed = parseSql('SELECT lower(name) FROM public.users');
     expect(parsed.success).toBe(true);
 
     const policy: Policy = {
-      allowedTables: ['users'],
+      allowedTables: ['public.users'],
       allowedFunctions: ['lower'],
     };
 
@@ -19,11 +19,11 @@ describe('function extraction and policy', () => {
   });
 
   test('allows explicitly listed function', () => {
-    const parsed = parseSql('SELECT pg_catalog.current_database() FROM users');
+    const parsed = parseSql('SELECT pg_catalog.current_database() FROM public.users');
     expect(parsed.success).toBe(true);
 
     const policy: Policy = {
-      allowedTables: ['users'],
+      allowedTables: ['public.users'],
       allowedFunctions: ['pg_catalog.current_database'],
     };
 
@@ -32,11 +32,11 @@ describe('function extraction and policy', () => {
   });
 
   test('rejects dangerous function by default', () => {
-    const parsed = parseSql('SELECT pg_catalog.pg_read_file() FROM users');
+    const parsed = parseSql('SELECT pg_catalog.pg_read_file() FROM public.users');
     expect(parsed.success).toBe(true);
 
     const policy: Policy = {
-      allowedTables: ['users'],
+      allowedTables: ['public.users'],
     };
 
     const result = checkFunctionsAllowed(parsed.statements[0].functions, policy);
@@ -46,11 +46,11 @@ describe('function extraction and policy', () => {
   });
 
   test('rejects pg_read_file', () => {
-    const parsed = parseSql('SELECT pg_catalog.pg_read_file() FROM users');
+    const parsed = parseSql('SELECT pg_catalog.pg_read_file() FROM public.users');
     expect(parsed.success).toBe(true);
 
     const policy: Policy = {
-      allowedTables: ['users'],
+      allowedTables: ['public.users'],
       allowedFunctions: ['lower'],
     };
 
@@ -63,7 +63,7 @@ describe('function extraction and policy', () => {
   test('extracts functions across select, where, join, group by, having, order by, cte, and subquery', () => {
     const sql =
       'WITH recent AS (SELECT max(total) AS max_total FROM orders) ' +
-      'SELECT lower(u.name), count(*) FROM users u ' +
+      'SELECT lower(u.name), count(*) FROM public.users u ' +
       'JOIN accounts a ON lower(u.email) = lower(a.email) ' +
       'WHERE length(u.email) > (SELECT avg(o.total) FROM orders o) ' +
       'GROUP BY lower(u.name) ' +
@@ -82,12 +82,12 @@ describe('function extraction and policy', () => {
 
   test('rejects multiple unlisted functions in one query', () => {
     const parsed = parseSql(
-      'SELECT lower(name), md5(email), pg_catalog.current_database() FROM users WHERE length(email) > 5'
+      'SELECT lower(name), md5(email), pg_catalog.current_database() FROM public.users WHERE length(email) > 5'
     );
     expect(parsed.success).toBe(true);
 
     const policy: Policy = {
-      allowedTables: ['users'],
+      allowedTables: ['public.users'],
       allowedFunctions: ['lower'],
     };
 
@@ -102,11 +102,11 @@ describe('function extraction and policy', () => {
   });
 
   test('matches allowlist case-insensitively', () => {
-    const parsed = parseSql('SELECT LOWER(name), Pg_Catalog.CURRENT_DATABASE() FROM users');
+    const parsed = parseSql('SELECT LOWER(name), Pg_Catalog.CURRENT_DATABASE() FROM public.users');
     expect(parsed.success).toBe(true);
 
     const policy: Policy = {
-      allowedTables: ['users'],
+      allowedTables: ['public.users'],
       allowedFunctions: ['lower', 'PG_CATALOG.current_database'],
     };
 
@@ -114,16 +114,18 @@ describe('function extraction and policy', () => {
     expect(result.allowed).toBe(true);
   });
 
-  test('allows schema-qualified call via unqualified allowlist entry', () => {
-    const parsed = parseSql('SELECT pg_catalog.current_database() FROM users');
+  test('rejects schema-qualified call when only unqualified name is allowlisted', () => {
+    const parsed = parseSql('SELECT pg_catalog.current_database() FROM public.users');
     expect(parsed.success).toBe(true);
 
     const policy: Policy = {
-      allowedTables: ['users'],
+      allowedTables: ['public.users'],
       allowedFunctions: ['current_database'],
     };
 
     const result = checkFunctionsAllowed(parsed.statements[0].functions, policy);
-    expect(result.allowed).toBe(true);
+    expect(result.allowed).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.FUNCTION_NOT_ALLOWED);
+    expect(result.violations).toEqual([{ schema: 'pg_catalog', name: 'current_database' }]);
   });
 });

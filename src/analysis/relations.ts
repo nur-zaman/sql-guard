@@ -1,94 +1,69 @@
 import { TableReference } from '../parser/types';
 
 export function extractAllTables(ast: unknown): TableReference[] {
-  // First pass: collect all aliases from the entire AST
-  const aliases = collectAliases(ast);
-  const cteNames = collectCteNames(ast);
-  
-  // Second pass: extract tables
   const tables: TableReference[] = [];
   const visited = new Set<unknown>();
 
-  function addTable(schema: unknown, name: unknown, alias: unknown): void {
+  function addTable(schema: unknown, name: unknown, alias: unknown, cteScope: Set<string>): void {
     if (typeof name !== 'string' || name.length === 0) return;
-    if (!isBaseRelation(name, cteNames, aliases)) return;
+    const hasSchema = typeof schema === 'string' && schema.length > 0;
+    if (!hasSchema && cteScope.has(canonicalName(name))) {
+      return;
+    }
 
     tables.push({
-      schema: typeof schema === 'string' ? schema : undefined,
+      schema: hasSchema ? schema : undefined,
       name,
       alias: typeof alias === 'string' ? alias : undefined,
     });
   }
 
-  function traverse(node: unknown): void {
+  function traverse(node: unknown, inheritedCtes: Set<string>): void {
     if (!node || typeof node !== 'object') return;
     if (visited.has(node)) return;
     visited.add(node);
 
     const typed = node as Record<string, unknown>;
+    const localCtes = buildLocalCteScope(typed.with, inheritedCtes);
+
+    if (Array.isArray(typed.with)) {
+      for (const cte of typed.with) {
+        const cteNode = asRecord(cte);
+        if (cteNode.stmt) {
+          traverse(cteNode.stmt, localCtes);
+        }
+      }
+    }
 
     if (Array.isArray(typed.from)) {
       for (const item of typed.from) {
-        extractFromItem(item, addTable, traverse);
+        extractFromItem(item, localCtes, addTable, traverse);
       }
     }
 
     if (Array.isArray(typed.join)) {
       for (const join of typed.join) {
         const joinItem = asRecord(join);
-        addTable(joinItem.db, joinItem.table, joinItem.as);
-        if (joinItem.expr) traverse(joinItem.expr);
-      }
-    }
-
-    if (Array.isArray(typed.with)) {
-      for (const cte of typed.with) {
-        const cteNode = asRecord(cte);
-        if (cteNode.stmt) traverse(cteNode.stmt);
-      }
-    }
-
-    if (Array.isArray(typed.table)) {
-      for (const tableItem of typed.table) {
-        const tableNode = asRecord(tableItem);
-        addTable(tableNode.db, tableNode.table, tableNode.as);
-      }
-    } else if (typed.table && typeof typed.table === 'object') {
-      const singleTable = asRecord(typed.table);
-      addTable(singleTable.db, singleTable.table, singleTable.as);
-    } else if (typeof typed.table === 'string') {
-      addTable(typed.db, typed.table, typed.as);
-    }
-
-    // Don't traverse into WHERE - column references there might use aliases
-    // But DO traverse into subqueries in WHERE
-    if (typed.where && typeof typed.where === 'object') {
-      const whereNode = asRecord(typed.where);
-      // Only traverse nested select statements, not column refs
-      if (whereNode.type === 'select') {
-        traverse(whereNode);
-      }
-    }
-
-    if (Array.isArray(typed.columns)) {
-      for (const column of typed.columns) {
-        const columnNode = asRecord(column);
-        // Only traverse subqueries in columns, not column refs
-        if (columnNode.expr && typeof columnNode.expr === 'object') {
-          const exprNode = asRecord(columnNode.expr);
-          if (exprNode.type === 'select') {
-            traverse(columnNode.expr);
-          }
+        addTable(joinItem.db, joinItem.table, joinItem.as, localCtes);
+        if (joinItem.expr) {
+          traverse(joinItem.expr, localCtes);
         }
       }
     }
 
-    for (const value of Object.values(typed)) {
-      if (value && typeof value === 'object') traverse(value);
+    if (isRelationStatementType(typed.type)) {
+      collectStatementTableTargets(typed.table, localCtes, addTable);
+    }
+
+    for (const [key, value] of Object.entries(typed)) {
+      if (key === 'with') continue;
+      if (value && typeof value === 'object') {
+        traverse(value, localCtes);
+      }
     }
   }
 
-  traverse(ast);
+  traverse(ast, new Set<string>());
 
   // Deduplicate
   const seen = new Set<string>();
@@ -102,86 +77,18 @@ export function extractAllTables(ast: unknown): TableReference[] {
 
 function extractFromItem(
   item: unknown,
-  addTable: (schema: unknown, name: unknown, alias: unknown) => void,
-  traverse: (node: unknown) => void
+  cteScope: Set<string>,
+  addTable: (schema: unknown, name: unknown, alias: unknown, cteScope: Set<string>) => void,
+  traverse: (node: unknown, cteScope: Set<string>) => void
 ): void {
   if (!item || typeof item !== 'object') return;
 
   const typed = item as Record<string, unknown>;
-  addTable(typed.db, typed.table, typed.as);
+  addTable(typed.db, typed.table, typed.as, cteScope);
 
   if (typed.expr && typeof typed.expr === 'object') {
-    traverse(typed.expr);
+    traverse(typed.expr, cteScope);
   }
-}
-
-function collectAliases(ast: unknown): Set<string> {
-  const aliases = new Set<string>();
-  const visited = new Set<unknown>();
-
-  function walk(node: unknown): void {
-    if (!node || typeof node !== 'object') return;
-    if (visited.has(node)) return;
-    visited.add(node);
-
-    const typed = node as Record<string, unknown>;
-
-    // Collect aliases from FROM clause
-    if (Array.isArray(typed.from)) {
-      for (const item of typed.from) {
-        const fromItem = asRecord(item);
-        if (typeof fromItem.as === 'string' && fromItem.as.length > 0) {
-          aliases.add(fromItem.as.toLowerCase());
-        }
-      }
-    }
-
-    // Collect aliases from JOIN
-    if (Array.isArray(typed.join)) {
-      for (const join of typed.join) {
-        const joinItem = asRecord(join);
-        if (typeof joinItem.as === 'string' && joinItem.as.length > 0) {
-          aliases.add(joinItem.as.toLowerCase());
-        }
-      }
-    }
-
-    // Recurse into all properties
-    for (const value of Object.values(typed)) {
-      if (value && typeof value === 'object') walk(value);
-    }
-  }
-
-  walk(ast);
-  return aliases;
-}
-
-function collectCteNames(ast: unknown): Set<string> {
-  const names = new Set<string>();
-  const visited = new Set<unknown>();
-
-  function walk(node: unknown): void {
-    if (!node || typeof node !== 'object') return;
-    if (visited.has(node)) return;
-    visited.add(node);
-
-    const typed = node as Record<string, unknown>;
-
-    if (Array.isArray(typed.with)) {
-      for (const cte of typed.with) {
-        const cteNode = asRecord(cte);
-        const cteName = extractCteName(cteNode.name);
-        if (cteName) names.add(cteName.toLowerCase());
-      }
-    }
-
-    for (const value of Object.values(typed)) {
-      if (value && typeof value === 'object') walk(value);
-    }
-  }
-
-  walk(ast);
-  return names;
 }
 
 function extractCteName(value: unknown): string | null {
@@ -195,9 +102,61 @@ function extractCteName(value: unknown): string | null {
   return null;
 }
 
-function isBaseRelation(name: string, cteNames: Set<string>, aliases: Set<string>): boolean {
-  const lowerName = name.toLowerCase();
-  return !cteNames.has(lowerName) && !aliases.has(lowerName);
+function buildLocalCteScope(withClause: unknown, inherited: Set<string>): Set<string> {
+  const local = new Set(inherited);
+  if (!Array.isArray(withClause)) {
+    return local;
+  }
+
+  for (const cte of withClause) {
+    const cteNode = asRecord(cte);
+    const cteName = extractCteName(cteNode.name);
+    if (cteName) {
+      local.add(canonicalName(cteName));
+    }
+  }
+
+  return local;
+}
+
+function collectStatementTableTargets(
+  tableNode: unknown,
+  cteScope: Set<string>,
+  addTable: (schema: unknown, name: unknown, alias: unknown, cteScope: Set<string>) => void
+): void {
+  if (Array.isArray(tableNode)) {
+    for (const tableItem of tableNode) {
+      const tableRecord = asRecord(tableItem);
+      addTable(tableRecord.db, tableRecord.table, tableRecord.as, cteScope);
+    }
+    return;
+  }
+
+  if (tableNode && typeof tableNode === 'object') {
+    const tableRecord = asRecord(tableNode);
+    addTable(tableRecord.db, tableRecord.table, tableRecord.as, cteScope);
+    return;
+  }
+
+  if (typeof tableNode === 'string') {
+    addTable(undefined, tableNode, undefined, cteScope);
+  }
+}
+
+function isRelationStatementType(type: unknown): boolean {
+  if (typeof type !== 'string') {
+    return false;
+  }
+
+  const normalized = type.toLowerCase();
+  return normalized === 'insert' || normalized === 'update' || normalized === 'delete';
+}
+
+function canonicalName(name: string): string {
+  if (name.startsWith('"') && name.endsWith('"') && name.length >= 2) {
+    return name.slice(1, -1).toLowerCase();
+  }
+  return name.toLowerCase();
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

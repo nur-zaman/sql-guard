@@ -1,5 +1,6 @@
 import { ParsedStatement } from '../parser/types';
-import { Policy, ErrorCode } from '../index';
+import { ErrorCode } from '../types/public';
+import type { Policy } from '../types/public';
 
 export interface StatementCheckResult {
   allowed: boolean;

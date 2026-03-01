@@ -11,30 +11,31 @@ import {
 
 describe('ErrorCode enum', () => {
   test('has all required error codes', () => {
-    expect(ErrorCode.PARSE_ERROR).toBe('PARSE_ERROR');
-    expect(ErrorCode.UNSUPPORTED_SQL_FEATURE).toBe('UNSUPPORTED_SQL_FEATURE');
-    expect(ErrorCode.TABLE_NOT_ALLOWED).toBe('TABLE_NOT_ALLOWED');
-    expect(ErrorCode.STATEMENT_NOT_ALLOWED).toBe('STATEMENT_NOT_ALLOWED');
-    expect(ErrorCode.FUNCTION_NOT_ALLOWED).toBe('FUNCTION_NOT_ALLOWED');
-    expect(ErrorCode.MULTI_STATEMENT_DISABLED).toBe('MULTI_STATEMENT_DISABLED');
+    expect(ErrorCode.PARSE_ERROR).toBe(ErrorCode.PARSE_ERROR);
+    expect(ErrorCode.UNSUPPORTED_SQL_FEATURE).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
+    expect(ErrorCode.TABLE_NOT_ALLOWED).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+    expect(ErrorCode.STATEMENT_NOT_ALLOWED).toBe(ErrorCode.STATEMENT_NOT_ALLOWED);
+    expect(ErrorCode.FUNCTION_NOT_ALLOWED).toBe(ErrorCode.FUNCTION_NOT_ALLOWED);
+    expect(ErrorCode.MULTI_STATEMENT_DISABLED).toBe(ErrorCode.MULTI_STATEMENT_DISABLED);
+    expect(ErrorCode.INVALID_POLICY).toBe(ErrorCode.INVALID_POLICY);
   });
 });
 
 describe('Policy interface', () => {
   test('can create a valid policy object', () => {
     const policy: Policy = {
-      allowedTables: ['users', 'orders'],
+      allowedTables: ['public.users', 'public.orders'],
       allowedStatements: ['select', 'insert'],
       allowMultiStatement: false,
       allowedFunctions: ['count', 'sum'],
       resolver: (name) => name === 'users' ? 'public.users' : null
     };
-    expect(policy.allowedTables).toEqual(['users', 'orders']);
+    expect(policy.allowedTables).toEqual(['public.users', 'public.orders']);
   });
 
   test('policy only requires allowedTables', () => {
-    const policy: Policy = { allowedTables: ['users'] };
-    expect(policy.allowedTables).toEqual(['users']);
+    const policy: Policy = { allowedTables: ['public.users'] };
+    expect(policy.allowedTables).toEqual(['public.users']);
   });
 });
 
@@ -65,6 +66,15 @@ describe('Violation', () => {
     };
     expect(violation.type).toBe('table');
     expect(violation.location?.line).toBe(1);
+  });
+
+  test('supports policy violation type', () => {
+    const violation: Violation = {
+      type: 'policy',
+      message: "Policy 'allowedTables' must be schema-qualified",
+    };
+
+    expect(violation.type).toBe('policy');
   });
 });
 

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Validate AI-generated PostgreSQL queries against explicit table allowlists",
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.js",
   "types": "./dist/index.d.ts",
@@ -27,7 +28,8 @@
     "build": "bun build.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "prepublishOnly": "bun run build"
+    "pack:check": "npm_config_cache=.npm-cache npm pack --dry-run --json | node -e \"const fs=require('node:fs'); const output=fs.readFileSync(0,'utf8'); const result=JSON.parse(output)[0]; const limit=500000; if (result.unpackedSize > limit) { console.error('Package unpacked size ' + result.unpackedSize + ' exceeds limit ' + limit); process.exit(1); } console.log('Package unpacked size ' + result.unpackedSize + ' bytes (limit ' + limit + ')');\"",
+    "prepublishOnly": "bun run typecheck && bun test && bun run build"
   },
   "dependencies": {
     "node-sql-parser": "^5.3.0"

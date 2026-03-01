@@ -30,7 +30,7 @@ jobs:
         run: bun test
 
       - name: Pack check
-        run: npm pack --dry-run
+        run: bun run pack:check
 
       - name: Publish dry-run
-        run: npm publish --dry-run --access public
+        run: npm_config_cache=.npm-cache npm publish --dry-run --access public

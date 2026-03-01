@@ -1,7 +1,6 @@
 import { FunctionCall } from '../parser/types';
 
 export function extractAllFunctions(ast: unknown): FunctionCall[] {
-  collectAliases(ast);
   const functions: FunctionCall[] = [];
   const visited = new Set<unknown>();
 
@@ -37,44 +36,6 @@ export function extractAllFunctions(ast: unknown): FunctionCall[] {
     seen.add(key);
     return true;
   });
-}
-
-function collectAliases(ast: unknown): Set<string> {
-  const aliases = new Set<string>();
-  const visited = new Set<unknown>();
-
-  function walk(node: unknown): void {
-    if (!node || typeof node !== 'object') return;
-    if (visited.has(node)) return;
-    visited.add(node);
-
-    const typed = node as Record<string, unknown>;
-
-    if (Array.isArray(typed.from)) {
-      for (const item of typed.from) {
-        const fromItem = asRecord(item);
-        if (typeof fromItem.as === 'string' && fromItem.as.length > 0) {
-          aliases.add(fromItem.as.toLowerCase());
-        }
-      }
-    }
-
-    if (Array.isArray(typed.join)) {
-      for (const join of typed.join) {
-        const joinItem = asRecord(join);
-        if (typeof joinItem.as === 'string' && joinItem.as.length > 0) {
-          aliases.add(joinItem.as.toLowerCase());
-        }
-      }
-    }
-
-    for (const value of Object.values(typed)) {
-      if (value && typeof value === 'object') walk(value);
-    }
-  }
-
-  walk(ast);
-  return aliases;
 }
 
 function extractFunctionIdentity(

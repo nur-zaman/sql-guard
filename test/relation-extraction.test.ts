@@ -22,6 +22,28 @@ describe('extractAllTables', () => {
     expect(tables.map((table) => table.name)).toEqual(['orders']);
   });
 
+  test('does not suppress unauthorized table when alias name collides', () => {
+    const result = parseSql(
+      'SELECT * FROM public.users secret_table JOIN public.secret_table s ON secret_table.id = s.user_id'
+    );
+    const tables = extractAllTables(result.statements[0].raw);
+    expect(tables.map((table) => `${table.schema}.${table.name}`).sort()).toEqual([
+      'public.secret_table',
+      'public.users',
+    ]);
+  });
+
+  test('does not suppress schema-qualified table when CTE name collides', () => {
+    const result = parseSql(
+      'WITH secret_table AS (SELECT * FROM public.users) SELECT * FROM public.secret_table'
+    );
+    const tables = extractAllTables(result.statements[0].raw);
+    expect(tables.map((table) => `${table.schema}.${table.name}`).sort()).toEqual([
+      'public.secret_table',
+      'public.users',
+    ]);
+  });
+
   test('extracts tables from subquery in FROM', () => {
     const result = parseSql('SELECT * FROM (SELECT * FROM users) AS u');
     const tables = extractAllTables(result.statements[0].raw);

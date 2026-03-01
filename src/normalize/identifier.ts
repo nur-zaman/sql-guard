@@ -1,4 +1,4 @@
-import type { Policy } from '../index';
+import type { Policy } from '../types/public';
 import type { TableReference } from '../parser/types';
 
 export interface NormalizedTable {
@@ -34,22 +34,23 @@ export function normalizeTableReference(
   if (policy.resolver) {
     const resolved = policy.resolver(ref.name);
 
-    if (resolved) {
-      const parts = resolved.split('.');
-
-      if (parts.length === 2) {
-        const schema = normalizeIdentifier(parts[0]);
-        const name = normalizeIdentifier(parts[1]);
-
+    if (typeof resolved === 'string' && resolved.trim().length > 0) {
+      const parsed = parseQualifiedName(resolved);
+      if (!parsed) {
         return {
-          success: true,
-          table: {
-            schema,
-            name,
-            fullyQualified: `${schema}.${name}`,
-          },
+          success: false,
+          error: `Resolver returned invalid table '${resolved}'. Expected 'schema.table'`,
         };
       }
+
+      return {
+        success: true,
+        table: {
+          schema: parsed.schema,
+          name: parsed.name,
+          fullyQualified: `${parsed.schema}.${parsed.name}`,
+        },
+      };
     }
   }
 
@@ -69,17 +70,33 @@ function normalizeIdentifier(ident: string): string {
 
 export function isTableAllowed(
   normalized: NormalizedTable,
-  allowedTables: string[]
+  allowedTables: Iterable<string>
 ): boolean {
-  const normalizedAllowed = allowedTables.map((table) => table.toLowerCase());
-
-  if (normalizedAllowed.includes(normalized.fullyQualified.toLowerCase())) {
-    return true;
+  const wanted = normalized.fullyQualified.toLowerCase();
+  if (allowedTables instanceof Set) {
+    return allowedTables.has(wanted);
   }
 
-  if (normalizedAllowed.includes(normalized.name.toLowerCase())) {
-    return true;
+  for (const table of allowedTables) {
+    if (table.toLowerCase().trim() === wanted) {
+      return true;
+    }
   }
 
   return false;
+}
+
+function parseQualifiedName(value: string): { schema: string; name: string } | null {
+  const parts = value.split('.');
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const schema = normalizeIdentifier(parts[0]);
+  const name = normalizeIdentifier(parts[1]);
+  if (!schema || !name) {
+    return null;
+  }
+
+  return { schema, name };
 }

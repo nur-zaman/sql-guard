@@ -25,9 +25,27 @@ describe('threat model regression', () => {
     expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
   });
 
+  test('alias_collision_bypass: alias names do not suppress unauthorized tables', () => {
+    const result = validateAgainstPolicy(
+      'SELECT * FROM public.users secret_table JOIN public.secret_table s ON secret_table.id = s.user_id',
+      basePolicy
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+  });
+
   test('cte_exfiltration: CTE accessing unauthorized table is blocked', () => {
     const result = validateAgainstPolicy(
       'WITH leaked AS (SELECT * FROM public.secret_table) SELECT * FROM public.users',
+      basePolicy
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+  });
+
+  test('cte_name_collision_bypass: CTE name does not hide unauthorized base relation', () => {
+    const result = validateAgainstPolicy(
+      'WITH secret_table AS (SELECT * FROM public.users) SELECT * FROM public.secret_table',
       basePolicy
     );
     expect(result.ok).toBe(false);

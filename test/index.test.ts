@@ -9,7 +9,7 @@ describe('validate', () => {
   });
 
   test('returns ValidationResult structure', () => {
-    const policy: Policy = { allowedTables: ['users'] };
+    const policy: Policy = { allowedTables: ['public.users'] };
     const result: ValidationResult = validate('SELECT 1', policy);
     expect(typeof result.ok).toBe('boolean');
     expect(Array.isArray(result.violations)).toBe(true);

@@ -20,7 +20,7 @@ describe('normalizeTableReference', () => {
 
   test('denies unqualified table without resolver', () => {
     const ref = { name: 'users' };
-    const policy: Policy = { allowedTables: ['users'] };
+    const policy: Policy = { allowedTables: ['public.users'] };
 
     const result = normalizeTableReference(ref, policy);
     expect(result.success).toBe(false);
@@ -61,14 +61,14 @@ describe('isTableAllowed', () => {
     expect(isTableAllowed(table, ['public.users'])).toBe(true);
   });
 
-  test('returns true for table name match', () => {
+  test('returns false for unqualified table-name allowlist entry', () => {
     const table: NormalizedTable = {
       schema: 'public',
       name: 'users',
       fullyQualified: 'public.users',
     };
 
-    expect(isTableAllowed(table, ['users'])).toBe(true);
+    expect(isTableAllowed(table, ['users'])).toBe(false);
   });
 
   test('returns false for non-matching table', () => {
