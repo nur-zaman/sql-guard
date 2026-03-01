@@ -3,7 +3,7 @@ import { validate, assertSafeSql, Policy, ValidationResult } from '../src/index'
 
 describe('validate', () => {
   test('returns ValidationResult with ok true for valid query', () => {
-    const result = validate('SELECT * FROM users', { allowedTables: ['users'] });
+    const result = validate('SELECT * FROM public.users', { allowedTables: ['public.users'] });
     expect(result.ok).toBe(true);
     expect(result.violations).toHaveLength(0);
   });
@@ -18,6 +18,6 @@ describe('validate', () => {
 
 describe('assertSafeSql', () => {
   test('does not throw for query when validate returns ok', () => {
-    expect(() => assertSafeSql('SELECT * FROM users', { allowedTables: ['users'] })).not.toThrow();
+    expect(() => assertSafeSql('SELECT * FROM public.users', { allowedTables: ['public.users'] })).not.toThrow();
   });
 });
