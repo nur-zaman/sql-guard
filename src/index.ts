@@ -3,6 +3,8 @@
  * Validate AI-generated PostgreSQL queries against explicit table allowlists
  */
 
+import { validateAgainstPolicy } from './policy/engine';
+
 // Error codes enum
 export enum ErrorCode {
   PARSE_ERROR = 'PARSE_ERROR',
@@ -53,8 +55,7 @@ export class SqlValidationError extends Error {
  * @returns ValidationResult with ok status and any violations
  */
 export function validate(sql: string, policy: Policy): ValidationResult {
-  // Stub - returns ok: true for now (Task 9 will implement)
-  return { ok: true, violations: [] };
+  return validateAgainstPolicy(sql, policy);
 }
 
 /**
@@ -73,3 +74,16 @@ export function assertSafeSql(sql: string, policy: Policy): void {
     );
   }
 }
+
+export { parseSql } from './parser/adapter';
+export type { ParseResult, ParsedStatement, TableReference, FunctionCall } from './parser/types';
+export { normalizeTableReference, isTableAllowed } from './normalize/identifier';
+export type { NormalizedTable, NormalizationResult } from './normalize/identifier';
+export { isStatementAllowed, checkMultiStatementPolicy } from './policy/statement';
+export type { StatementCheckResult, StatementType } from './policy/statement';
+export { extractAllTables } from './analysis/relations';
+export { extractAllFunctions } from './analysis/functions';
+export { checkFunctionsAllowed } from './policy/function';
+export type { FunctionCheckResult } from './policy/function';
+export { validateAgainstPolicy } from './policy/engine';
+export type { EngineResult } from './policy/engine';
