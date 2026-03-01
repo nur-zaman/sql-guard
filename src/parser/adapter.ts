@@ -1,3 +1,12 @@
+/**
+ * SQL Parser Adapter
+ *
+ * Wraps node-sql-parser to parse PostgreSQL SQL into an AST.
+ * Extracts tables and functions for policy validation.
+ *
+ * @module
+ */
+
 import { Parser } from 'node-sql-parser';
 import { ParseResult, ParsedStatement } from './types';
 import { extractAllFunctions } from '../analysis/functions';
@@ -5,6 +14,25 @@ import { extractAllTables } from '../analysis/relations';
 
 const parser = new Parser();
 
+/**
+ * Parse a SQL string into an AST.
+ *
+ * Parses the SQL and extracts tables, functions, and statement types.
+ * Returns a structured result that can be used for policy validation.
+ *
+ * @param sql - The SQL query to parse
+ * @param dialect - SQL dialect to use (defaults to 'postgresql')
+ * @returns ParseResult with success status and parsed statements or error info
+ *
+ * @example
+ * ```typescript
+ * const result = parseSql('SELECT * FROM public.users');
+ * if (result.success) {
+ *   console.log('Tables:', result.statements[0].tables);
+ *   console.log('Functions:', result.statements[0].functions);
+ * }
+ * ```
+ */
 export function parseSql(sql: string, dialect: 'postgresql' = 'postgresql'): ParseResult {
   try {
     const ast = parser.astify(sql, { database: dialect });

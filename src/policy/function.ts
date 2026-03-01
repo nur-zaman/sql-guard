@@ -1,15 +1,37 @@
+/**
+ * Function Policy Validation
+ *
+ * Validates function calls against policy allowlists.
+ *
+ * @module
+ */
+
 import { FunctionCall } from '../parser/types';
 import { ErrorCode } from '../types/public';
 import type { CompiledPolicy } from './compile-policy';
 import type { Policy } from '../types/public';
 
+/**
+ * Result of checking if functions are allowed.
+ */
 export interface FunctionCheckResult {
+  /** Whether all functions are allowed */
   allowed: boolean;
+  /** Error code if any function is not allowed */
   errorCode?: ErrorCode;
+  /** Human-readable error message */
   errorMessage?: string;
+  /** List of disallowed functions */
   violations: Array<{ name: string; schema?: string }>;
 }
 
+/**
+ * Check if functions in a parsed statement are allowed by the policy.
+ *
+ * @param functions - Array of function calls from the parser
+ * @param policy - The policy containing allowed functions
+ * @returns FunctionCheckResult indicating if all functions are allowed
+ */
 export function checkFunctionsAllowed(
   functions: FunctionCall[],
   policy: Policy
@@ -18,6 +40,13 @@ export function checkFunctionsAllowed(
   return checkFunctionsAllowedWithAllowlists(functions, allowlists);
 }
 
+/**
+ * Check if functions are allowed using a compiled policy.
+ *
+ * @param functions - Array of function calls from the parser
+ * @param policy - The compiled policy containing function allowlists
+ * @returns FunctionCheckResult indicating if all functions are allowed
+ */
 export function checkFunctionsAllowedCompiled(
   functions: FunctionCall[],
   policy: CompiledPolicy

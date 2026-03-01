@@ -1,3 +1,12 @@
+/**
+ * Policy Validation Engine
+ *
+ * Core validation logic that orchestrates parsing, policy compilation,
+ * and violation detection.
+ *
+ * @module
+ */
+
 import { parseSql } from '../parser/adapter';
 import { checkFunctionsAllowedCompiled } from './function';
 import { normalizeTableReference, isTableAllowed } from '../normalize/identifier';
@@ -8,6 +17,9 @@ import { compilePolicy } from './compile-policy';
 import type { CompiledPolicy } from './compile-policy';
 import type { Policy, ValidationResult, Violation } from '../types/public';
 
+/**
+ * Internal result type used during validation.
+ */
 export interface EngineResult {
   ok: boolean;
   violations: Violation[];
@@ -16,6 +28,16 @@ export interface EngineResult {
 
 const METADATA_SCHEMAS = new Set(['information_schema', 'pg_catalog']);
 
+/**
+ * Validate a SQL query against a policy.
+ *
+ * This is the main validation function used by {@link validate}.
+ * It compiles the policy, parses the SQL, and checks all constraints.
+ *
+ * @param sql - The SQL query to validate
+ * @param policy - The policy to validate against
+ * @returns ValidationResult indicating success or failure with violations
+ */
 export function validateAgainstPolicy(sql: string, policy: Policy): ValidationResult {
   const compiledPolicyResult = compilePolicy(policy);
   if (!compiledPolicyResult.success) {
