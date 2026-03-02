@@ -1,17 +1,17 @@
-# llm-sql-guard
+# sql-guard
 
 Validate AI generated PostgreSQL queries against explicit allowlists. This package parses SQL into an AST and denies anything outside your policy.
 
 ## Installation
 
 ```bash
-npm install llm-sql-guard
+npm install sql-guard
 ```
 
 ## Quickstart
 
 ```typescript
-import { validate, assertSafeSql, ErrorCode } from 'llm-sql-guard';
+import { validate, assertSafeSql, ErrorCode } from 'sql-guard';
 
 const policy = {
   allowedTables: ['public.users', 'public.orders'],
@@ -45,7 +45,7 @@ Validates SQL and throws when validation fails.
 - Throws: `SqlValidationError` with `code: ErrorCode` and `violations: Violation[]`
 
 ```typescript
-import { assertSafeSql, SqlValidationError, ErrorCode } from 'llm-sql-guard';
+import { assertSafeSql, SqlValidationError, ErrorCode } from 'sql-guard';
 
 try {
   assertSafeSql('SELECT pg_catalog.current_database() FROM public.users', {

@@ -4,7 +4,7 @@
  *
  * @example
  * ```typescript
- * import { validate, ErrorCode } from 'llm-sql-guard';
+ * import { validate, ErrorCode } from 'sql-guard';
  *
  * const result = validate('SELECT * FROM secret_table', { allowedTables: ['public.users'] });
  * if (result.errorCode === ErrorCode.TABLE_NOT_ALLOWED) {
