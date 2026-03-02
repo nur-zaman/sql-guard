@@ -1,6 +1,6 @@
 {
   "name": "sql-guard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Validate AI-generated PostgreSQL queries against explicit table allowlists",
   "type": "module",
   "sideEffects": false,
@@ -43,8 +43,36 @@
     "security",
     "llm",
     "guard",
-    "allowlist"
+    "allowlist",
+    "validation",
+    "postgresql",
+    "postgres",
+    "ast",
+    "parser",
+    "sanitize",
+    "injection",
+    "prevent",
+    "ai",
+    "chatgpt",
+    "codegen",
+    "database",
+    "query",
+    "policy",
+    "whitelist",
+    "rbac",
+    "least-privilege"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": "Nur Zaman",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nur-zaman/sql-guard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nur-zaman/sql-guard/issues"
+  },
+  "homepage": "https://github.com/nur-zaman/sql-guard#readme",
+  "engines": {
+    "node": ">=18"
+  }
 }
