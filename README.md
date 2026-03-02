@@ -151,19 +151,6 @@ This is a guardrail for LLM output. It helps enforce least privilege at the quer
 - `table`
 - `function`
 
-## Publishing
-
-For first time npm publish:
-
-```bash
-npm login
-npm publish --access public
-```
-
-Notes:
-
-- `prepublishOnly` runs typecheck, tests, and build, so publishing requires Bun in your environment.
-
 ## License
 
 MIT
