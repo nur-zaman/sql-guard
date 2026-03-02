@@ -9,10 +9,28 @@ export const miscPolicyFixtures: PolicyFixture[] = [
     expected: { ok: true },
   },
   {
+    name: 'strict mode blocks case-distinct identifier mismatch',
+    sql: 'SELECT * FROM "public"."Users"',
+    policy: { allowedTables: ['public.users'] },
+    expected: { ok: false, errorCode: ErrorCode.TABLE_NOT_ALLOWED },
+  },
+  {
+    name: 'caseInsensitive mode allows case-insensitive identifier matching',
+    sql: 'SELECT * FROM "public"."Users"',
+    policy: { allowedTables: ['public.users'], tableIdentifierMatching: 'caseInsensitive' },
+    expected: { ok: true },
+  },
+  {
     name: 'schema-qualified relation',
     sql: 'SELECT * FROM analytics.events',
     policy: { allowedTables: ['analytics.events'] },
     expected: { ok: true },
+  },
+  {
+    name: 'SELECT INTO is unsupported',
+    sql: 'SELECT * INTO tmp_users FROM public.users',
+    policy: { allowedTables: ['public.users'] },
+    expected: { ok: false, errorCode: ErrorCode.UNSUPPORTED_SQL_FEATURE },
   },
   {
     name: 'resolver allows unqualified relation',

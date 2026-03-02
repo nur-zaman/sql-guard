@@ -97,7 +97,7 @@ export function assertSafeSql(sql: string, policy: Policy): void {
 
 // Re-export types and functions for advanced use cases
 export { ErrorCode, SqlValidationError };
-export type { Policy, ValidationResult } from './types/public';
+export type { Policy, ValidationResult, TableIdentifierMatching } from './types/public';
 export type { Violation } from './types/public';
 export { parseSql } from './parser/adapter';
 export type { ParseResult, ParsedStatement, TableReference, FunctionCall } from './parser/types';

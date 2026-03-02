@@ -76,6 +76,7 @@ export interface Policy {
   allowedStatements?: ('select' | 'insert' | 'update' | 'delete')[];
   allowMultiStatement?: boolean;
   allowedFunctions?: string[];
+  tableIdentifierMatching?: 'strict' | 'caseInsensitive';
   resolver?: (unqualified: string) => string | null;
 }
 ```
@@ -87,6 +88,8 @@ Defaults and behavior:
 - `allowedStatements` defaults to `['select']`.
 - `allowMultiStatement` defaults to `false`.
 - `allowedFunctions` defaults to `[]`, which means any function call is denied unless allowlisted.
+- `tableIdentifierMatching` defaults to `'strict'` (exact case-sensitive table matching).
+- Set `tableIdentifierMatching: 'caseInsensitive'` to preserve case-insensitive table matching.
 - Unqualified table references in SQL are denied unless you provide `resolver` to map them to `schema.table`.
 - Unqualified function allowlist entries (for example, `lower`) match only unqualified calls (`lower(...)`).
 - Schema-qualified function calls require schema-qualified allowlist entries (`pg_catalog.current_database`).
@@ -106,6 +109,8 @@ const strictPolicy = {
 
 - AST based validation, not regex matching.
 - Fail closed: unsupported or uncertain parser features are denied.
+- Data-modifying CTE payloads (for example `WITH x AS (INSERT ...) SELECT ...`) are denied as unsupported.
+- `SELECT INTO` is denied as unsupported.
 - Table allowlists: every referenced table must be in `policy.allowedTables` by fully qualified name.
 - Statement type restrictions: only `select` is allowed unless you opt in via `allowedStatements`.
 - Multi statement restriction: `SELECT 1; SELECT 2` is denied unless `allowMultiStatement: true`.

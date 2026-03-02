@@ -1,10 +1,12 @@
 import { ErrorCode } from '../types/public';
-import type { Policy, Violation } from '../types/public';
+import { parseQualifiedName } from '../normalize/qualified-name';
+import type { Policy, TableIdentifierMatching, Violation } from '../types/public';
 
 export interface CompiledPolicy {
   allowedTables: Set<string>;
   allowedFunctionsUnqualified: Set<string>;
   allowedFunctionsQualified: Set<string>;
+  tableIdentifierMatching: TableIdentifierMatching;
 }
 
 type CompilePolicyResult =
@@ -16,9 +18,14 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'allowedTables' must be an array of schema-qualified names");
   }
 
+  const tableIdentifierMatching = policy.tableIdentifierMatching ?? 'strict';
+  if (tableIdentifierMatching !== 'strict' && tableIdentifierMatching !== 'caseInsensitive') {
+    return invalidPolicy("Policy 'tableIdentifierMatching' must be either 'strict' or 'caseInsensitive'");
+  }
+
   const allowedTables = new Set<string>();
   for (const table of policy.allowedTables) {
-    const canonical = canonicalizeQualifiedName(table);
+    const canonical = canonicalizeQualifiedName(table, tableIdentifierMatching);
     if (!canonical) {
       return invalidPolicy(
         `Policy entry '${String(table)}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
@@ -59,6 +66,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       allowedTables,
       allowedFunctionsUnqualified,
       allowedFunctionsQualified,
+      tableIdentifierMatching,
     },
   };
 }
@@ -88,36 +96,12 @@ function canonicalizeFunctionEntry(value: unknown):
   return null;
 }
 
-export function canonicalizeQualifiedName(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const cleaned = value.trim();
-  if (!cleaned) {
-    return null;
-  }
-
-  const parts = cleaned.split('.');
-  if (parts.length !== 2) {
-    return null;
-  }
-
-  const schema = normalizeIdentifier(parts[0]);
-  const table = normalizeIdentifier(parts[1]);
-  if (!schema || !table) {
-    return null;
-  }
-
-  return `${schema}.${table}`.toLowerCase();
-}
-
-function normalizeIdentifier(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
+export function canonicalizeQualifiedName(
+  value: unknown,
+  mode: TableIdentifierMatching = 'strict'
+): string | null {
+  const parsed = parseQualifiedName(value, mode);
+  return parsed?.fullyQualified ?? null;
 }
 
 function invalidPolicy(message: string): CompilePolicyResult {

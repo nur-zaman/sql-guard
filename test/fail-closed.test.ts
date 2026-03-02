@@ -62,6 +62,50 @@ describe('fail-closed handling', () => {
     expect(triggerCheck.errorCode).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
   });
 
+  test('rejects SELECT INTO', () => {
+    const result = validateAgainstPolicy(
+      'SELECT * INTO tmp_users FROM public.users',
+      basePolicy
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
+    expect(result.violations[0].message).toContain('SELECT INTO is not supported');
+  });
+
+  test('rejects INSERT hidden inside CTE', () => {
+    const result = validateAgainstPolicy(
+      'WITH ins AS (INSERT INTO public.users (id) VALUES (1)) SELECT 1',
+      basePolicy
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
+    expect(result.violations[0].message).toContain("Nested write statement 'insert'");
+  });
+
+  test('rejects UPDATE hidden inside CTE', () => {
+    const result = validateAgainstPolicy(
+      'WITH upd AS (UPDATE public.users SET id = id) SELECT 1',
+      basePolicy
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
+    expect(result.violations[0].message).toContain("Nested write statement 'update'");
+  });
+
+  test('rejects DELETE hidden inside CTE', () => {
+    const result = validateAgainstPolicy(
+      'WITH del AS (DELETE FROM public.users) SELECT 1',
+      basePolicy
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
+    expect(result.violations[0].message).toContain("Nested write statement 'delete'");
+  });
+
   test('rejects parser uncertainty', () => {
     const result = checkUnsupportedFeatures({
       type: 'select',

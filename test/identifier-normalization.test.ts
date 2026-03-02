@@ -7,9 +7,23 @@ import {
 import type { Policy } from '../src/index';
 
 describe('normalizeTableReference', () => {
-  test('normalizes schema-qualified table', () => {
+  test('uses strict matching by default and preserves case distinctions', () => {
     const ref = { schema: 'public', name: 'Users' };
     const policy: Policy = { allowedTables: ['public.users'] };
+
+    const result = normalizeTableReference(ref, policy);
+    expect(result.success).toBe(true);
+    expect(result.table?.schema).toBe('public');
+    expect(result.table?.name).toBe('Users');
+    expect(result.table?.fullyQualified).toBe('public.Users');
+  });
+
+  test('caseInsensitive matching normalizes case-insensitively', () => {
+    const ref = { schema: 'public', name: 'Users' };
+    const policy: Policy = {
+      allowedTables: ['public.users'],
+      tableIdentifierMatching: 'caseInsensitive',
+    };
 
     const result = normalizeTableReference(ref, policy);
     expect(result.success).toBe(true);
@@ -41,17 +55,20 @@ describe('normalizeTableReference', () => {
 
   test('preserves case for quoted identifiers', () => {
     const ref = { schema: 'PUBLIC', name: '"UserTable"' };
-    const policy: Policy = { allowedTables: ['public.UserTable'] };
+    const policy: Policy = {
+      allowedTables: ['PUBLIC.UserTable'],
+      tableIdentifierMatching: 'strict',
+    };
 
     const result = normalizeTableReference(ref, policy);
     expect(result.success).toBe(true);
-    expect(result.table?.schema).toBe('public');
+    expect(result.table?.schema).toBe('PUBLIC');
     expect(result.table?.name).toBe('UserTable');
   });
 });
 
 describe('isTableAllowed', () => {
-  test('returns true for fully qualified match', () => {
+  test('returns true for fully qualified match in strict mode', () => {
     const table: NormalizedTable = {
       schema: 'public',
       name: 'users',
@@ -81,13 +98,23 @@ describe('isTableAllowed', () => {
     expect(isTableAllowed(table, ['orders', 'products'])).toBe(false);
   });
 
-  test('is case-insensitive', () => {
+  test('strict mode is case-sensitive', () => {
+    const table: NormalizedTable = {
+      schema: 'public',
+      name: 'users',
+      fullyQualified: 'public.users',
+    };
+
+    expect(isTableAllowed(table, ['PUBLIC.USERS'])).toBe(false);
+  });
+
+  test('caseInsensitive mode is case-insensitive', () => {
     const table: NormalizedTable = {
       schema: 'PUBLIC',
       name: 'USERS',
       fullyQualified: 'public.users',
     };
 
-    expect(isTableAllowed(table, ['PUBLIC.USERS'])).toBe(true);
+    expect(isTableAllowed(table, ['PUBLIC.USERS'], 'caseInsensitive')).toBe(true);
   });
 });

@@ -30,4 +30,14 @@ export const cteFixtures: PolicyFixture[] = [
       violationMessageIncludes: 'Recursive CTE is not supported',
     },
   },
+  {
+    name: 'data-modifying CTE is unsupported',
+    sql: 'WITH ins AS (INSERT INTO public.users (id) VALUES (1)) SELECT 1',
+    policy: { allowedTables: ['public.users'] },
+    expected: {
+      ok: false,
+      errorCode: ErrorCode.UNSUPPORTED_SQL_FEATURE,
+      violationMessageIncludes: "Nested write statement 'insert'",
+    },
+  },
 ];

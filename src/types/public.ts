@@ -14,20 +14,28 @@
  */
 export enum ErrorCode {
   /** SQL could not be parsed into an AST */
-  PARSE_ERROR = 'PARSE_ERROR',
+  PARSE_ERROR = "PARSE_ERROR",
   /** Parsed SQL contains features outside the supported subset (fail closed) */
-  UNSUPPORTED_SQL_FEATURE = 'UNSUPPORTED_SQL_FEATURE',
+  UNSUPPORTED_SQL_FEATURE = "UNSUPPORTED_SQL_FEATURE",
   /** A referenced table is not in the policy allowlist */
-  TABLE_NOT_ALLOWED = 'TABLE_NOT_ALLOWED',
+  TABLE_NOT_ALLOWED = "TABLE_NOT_ALLOWED",
   /** Statement type (e.g., INSERT, UPDATE) is not allowed by the policy */
-  STATEMENT_NOT_ALLOWED = 'STATEMENT_NOT_ALLOWED',
+  STATEMENT_NOT_ALLOWED = "STATEMENT_NOT_ALLOWED",
   /** A function call is not in the policy allowlist */
-  FUNCTION_NOT_ALLOWED = 'FUNCTION_NOT_ALLOWED',
+  FUNCTION_NOT_ALLOWED = "FUNCTION_NOT_ALLOWED",
   /** Query contains multiple statements while allowMultiStatement is disabled */
-  MULTI_STATEMENT_DISABLED = 'MULTI_STATEMENT_DISABLED',
+  MULTI_STATEMENT_DISABLED = "MULTI_STATEMENT_DISABLED",
   /** Policy configuration is invalid */
-  INVALID_POLICY = 'INVALID_POLICY',
+  INVALID_POLICY = "INVALID_POLICY",
 }
+
+/**
+ * Controls how table identifiers are matched against policy allowlists.
+ *
+ * - `strict`: exact case-sensitive matching (security-first default).
+ * - `caseInsensitive`: case-insensitive matching.
+ */
+export type TableIdentifierMatching = "strict" | "caseInsensitive";
 
 /**
  * Policy configuration that defines what SQL is allowed.
@@ -57,7 +65,7 @@ export interface Policy {
    * Defaults to `['select']` if not specified.
    * @default ['select']
    */
-  allowedStatements?: ('select' | 'insert' | 'update' | 'delete')[];
+  allowedStatements?: ("select" | "insert" | "update" | "delete")[];
 
   /**
    * Whether to allow multiple statements in a single query (e.g., `SELECT 1; SELECT 2`).
@@ -73,6 +81,14 @@ export interface Policy {
    * @default []
    */
   allowedFunctions?: string[];
+
+  /**
+   * Table identifier matching mode used for allowlist checks.
+   * `strict` is the secure default and preserves case distinctions.
+   * `caseInsensitive` enables case-insensitive behavior.
+   * @default 'strict'
+   */
+  tableIdentifierMatching?: TableIdentifierMatching;
 
   /**
    * Optional resolver function to map unqualified table names to schema-qualified names.
@@ -120,7 +136,7 @@ export interface ValidationResult {
  */
 export interface Violation {
   /** Type of violation */
-  type: 'table' | 'statement' | 'function' | 'parse' | 'unsupported' | 'policy';
+  type: "table" | "statement" | "function" | "parse" | "unsupported" | "policy";
   /** Human-readable description of the violation */
   message: string;
   /**
@@ -158,9 +174,9 @@ export class SqlValidationError extends Error {
     /** Error code indicating the type of validation failure */
     public readonly code: ErrorCode,
     /** Detailed violations that caused the failure */
-    public readonly violations: Violation[]
+    public readonly violations: Violation[],
   ) {
     super(message);
-    this.name = 'SqlValidationError';
+    this.name = "SqlValidationError";
   }
 }

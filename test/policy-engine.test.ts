@@ -55,6 +55,23 @@ describe('policy engine orchestration', () => {
     expect(result.violations[0].message).toContain('allowedFunctions entries must be');
   });
 
+  test('rejects policy with invalid tableIdentifierMatching', () => {
+    const policy = {
+      allowedTables: ['public.users'],
+      tableIdentifierMatching: 'invalid',
+    } as unknown as Policy;
+    const result = validateAgainstPolicy('SELECT * FROM public.users', policy);
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations).toEqual([
+      {
+        type: 'policy',
+        message: "Policy 'tableIdentifierMatching' must be either 'strict' or 'caseInsensitive'",
+      },
+    ]);
+  });
+
   test('rejects multi statement queries by default', () => {
     const policy: Policy = { allowedTables: ['public.users'] };
     const result = validateAgainstPolicy('SELECT 1; SELECT 2', policy);
@@ -82,6 +99,36 @@ describe('policy engine orchestration', () => {
       type: 'statement',
       message: "Statement type 'insert' not allowed. Allowed: select",
     });
+  });
+
+  test('rejects SELECT INTO as unsupported', () => {
+    const policy: Policy = { allowedTables: ['public.users'] };
+    const result = validateAgainstPolicy('SELECT * INTO tmp_users FROM public.users', policy);
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
+    expect(result.violations).toEqual([
+      {
+        type: 'unsupported',
+        message: 'SELECT INTO is not supported',
+      },
+    ]);
+  });
+
+  test('rejects nested write statement hidden in CTE', () => {
+    const policy: Policy = {
+      allowedTables: ['public.users'],
+      allowedStatements: ['select'],
+    };
+    const result = validateAgainstPolicy(
+      'WITH ins AS (INSERT INTO public.users (id) VALUES (1)) SELECT 1',
+      policy
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.UNSUPPORTED_SQL_FEATURE);
+    expect(result.violations[0].type).toBe('unsupported');
+    expect(result.violations[0].message).toContain("Nested write statement 'insert'");
   });
 
   test('allows unqualified relation when resolver maps to allowlisted table', () => {
@@ -118,6 +165,28 @@ describe('policy engine orchestration', () => {
       type: 'table',
       message: "Table 'admin.users' is not allowed",
     });
+  });
+
+  test('strict table matching rejects case-distinct identifiers by default', () => {
+    const policy: Policy = { allowedTables: ['public.users'] };
+    const result = validateAgainstPolicy('SELECT * FROM public."Users"', policy);
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+    expect(result.violations).toContainEqual({
+      type: 'table',
+      message: "Table 'public.Users' is not allowed",
+    });
+  });
+
+  test('caseInsensitive table matching allows case-insensitive identifiers', () => {
+    const policy: Policy = {
+      allowedTables: ['public.users'],
+      tableIdentifierMatching: 'caseInsensitive',
+    };
+    const result = validateAgainstPolicy('SELECT * FROM public."Users"', policy);
+
+    expect(result).toEqual({ ok: true, violations: [] });
   });
 
   test('rejects information_schema access by default', () => {

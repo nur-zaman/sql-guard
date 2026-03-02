@@ -114,7 +114,11 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
     }
 
     for (const tableRef of statement.tables) {
-      const normalized = normalizeTableReference(tableRef, policy);
+      const normalized = normalizeTableReference(
+        tableRef,
+        policy,
+        compiledPolicy.tableIdentifierMatching
+      );
       if (!normalized.success || !normalized.table) {
         pushViolation(
           violations,
@@ -135,7 +139,11 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
         normalized.table.fullyQualified,
         compiledPolicy
       );
-      const tableAllowed = isTableAllowed(normalized.table, compiledPolicy.allowedTables);
+      const tableAllowed = isTableAllowed(
+        normalized.table,
+        compiledPolicy.allowedTables,
+        compiledPolicy.tableIdentifierMatching
+      );
 
       if (metadataDenied || !tableAllowed) {
         const message = metadataDenied
@@ -191,7 +199,7 @@ function isMetadataTableDenied(schema: string, fullyQualified: string, policy: C
     return false;
   }
 
-  return !policy.allowedTables.has(fullyQualified.toLowerCase());
+  return !policy.allowedTables.has(fullyQualified);
 }
 
 function pushViolation(

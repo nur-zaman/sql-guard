@@ -7,7 +7,8 @@
  * @module
  */
 
-import type { Policy } from '../types/public';
+import { canonicalizeIdentifier, parseQualifiedName } from './qualified-name';
+import type { Policy, TableIdentifierMatching } from '../types/public';
 import type { TableReference } from '../parser/types';
 
 /**
@@ -47,11 +48,12 @@ export interface NormalizationResult {
  */
 export function normalizeTableReference(
   ref: TableReference,
-  policy: Policy
+  policy: Policy,
+  mode: TableIdentifierMatching = policy.tableIdentifierMatching ?? 'strict'
 ): NormalizationResult {
   if (ref.schema) {
-    const schema = normalizeIdentifier(ref.schema);
-    const name = normalizeIdentifier(ref.name);
+    const schema = normalizeIdentifier(ref.schema, mode);
+    const name = normalizeIdentifier(ref.name, mode);
 
     return {
       success: true,
@@ -76,7 +78,7 @@ export function normalizeTableReference(
     }
 
     if (typeof resolved === 'string' && resolved.trim().length > 0) {
-      const parsed = parseQualifiedName(resolved);
+      const parsed = parseQualifiedName(resolved, mode);
       if (!parsed) {
         return {
           success: false,
@@ -101,12 +103,16 @@ export function normalizeTableReference(
   };
 }
 
-function normalizeIdentifier(ident: string): string {
-  if (ident.startsWith('"') && ident.endsWith('"')) {
-    return ident.slice(1, -1);
+function normalizeIdentifier(
+  ident: string,
+  mode: TableIdentifierMatching
+): string {
+  const trimmed = ident.trim();
+  if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
+    return canonicalizeIdentifier(trimmed.slice(1, -1).replace(/""/g, '"'), mode);
   }
 
-  return ident.toLowerCase();
+  return canonicalizeIdentifier(trimmed, mode);
 }
 
 /**
@@ -120,33 +126,20 @@ function normalizeIdentifier(ident: string): string {
  */
 export function isTableAllowed(
   normalized: NormalizedTable,
-  allowedTables: Iterable<string>
+  allowedTables: Iterable<string>,
+  mode: TableIdentifierMatching = 'strict'
 ): boolean {
-  const wanted = normalized.fullyQualified.toLowerCase();
+  const wanted = `${canonicalizeIdentifier(normalized.schema, mode)}.${canonicalizeIdentifier(normalized.name, mode)}`;
   if (allowedTables instanceof Set) {
     return allowedTables.has(wanted);
   }
 
   for (const table of allowedTables) {
-    if (table.toLowerCase().trim() === wanted) {
+    const parsed = parseQualifiedName(table, mode);
+    if (parsed && parsed.fullyQualified === wanted) {
       return true;
     }
   }
 
   return false;
-}
-
-function parseQualifiedName(value: string): { schema: string; name: string } | null {
-  const parts = value.split('.');
-  if (parts.length !== 2) {
-    return null;
-  }
-
-  const schema = normalizeIdentifier(parts[0]);
-  const name = normalizeIdentifier(parts[1]);
-  if (!schema || !name) {
-    return null;
-  }
-
-  return { schema, name };
 }
