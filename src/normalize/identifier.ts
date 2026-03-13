@@ -97,9 +97,23 @@ export function normalizeTableReference(
     }
   }
 
+  // Fallback to defaultSchema if no resolver or resolver returned null/empty
+  if (policy.defaultSchema) {
+    const schema = normalizeIdentifier(policy.defaultSchema, mode);
+    const name = normalizeIdentifier(ref.name, mode);
+    return {
+      success: true,
+      table: {
+        schema,
+        name,
+        fullyQualified: `${schema}.${name}`,
+      },
+    };
+  }
+
   return {
     success: false,
-    error: `Unqualified table reference '${ref.name}' not allowed without resolver`,
+    error: `Unqualified table reference '${ref.name}' not allowed. Provide 'defaultSchema' or 'resolver' in policy.`,
   };
 }
 

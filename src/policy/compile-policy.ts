@@ -1,5 +1,5 @@
 import { ErrorCode } from '../types/public';
-import { parseQualifiedName } from '../normalize/qualified-name';
+import { canonicalizeIdentifier, parseQualifiedName } from '../normalize/qualified-name';
 import type { Policy, TableIdentifierMatching, Violation } from '../types/public';
 
 export interface CompiledPolicy {
@@ -7,6 +7,7 @@ export interface CompiledPolicy {
   allowedFunctionsUnqualified: Set<string>;
   allowedFunctionsQualified: Set<string>;
   tableIdentifierMatching: TableIdentifierMatching;
+  defaultSchema?: string;  // The normalized default schema at compile time
 }
 
 type CompilePolicyResult =
@@ -23,9 +24,32 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'tableIdentifierMatching' must be either 'strict' or 'caseInsensitive'");
   }
 
+  const defaultSchema = policy.defaultSchema?.trim();
+  if (defaultSchema !== undefined) {
+    if (defaultSchema.length === 0) {
+      return invalidPolicy("Policy 'defaultSchema' must be a non-empty string when provided");
+    }
+    // Validate defaultSchema is a valid identifier (no dots, special chars, etc.)
+    if (defaultSchema.includes('.') || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(defaultSchema)) {
+      return invalidPolicy("Policy 'defaultSchema' must be a valid SQL identifier without dots");
+    }
+  }
+
+  // Normalize defaultSchema at compile time for consistency with runtime normalization
+  const normalizedDefaultSchema = defaultSchema
+    ? canonicalizeIdentifier(defaultSchema, tableIdentifierMatching)
+    : undefined;
+
   const allowedTables = new Set<string>();
   for (const table of policy.allowedTables) {
-    const canonical = canonicalizeQualifiedName(table, tableIdentifierMatching);
+    let tableToCanonicalize = table;
+
+    // If entry has no dot and defaultSchema is set, auto-qualify it
+    if (normalizedDefaultSchema && typeof table === 'string' && !table.includes('.')) {
+      tableToCanonicalize = `${normalizedDefaultSchema}.${table}`;
+    }
+
+    const canonical = canonicalizeQualifiedName(tableToCanonicalize, tableIdentifierMatching);
     if (!canonical) {
       return invalidPolicy(
         `Policy entry '${String(table)}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
@@ -67,6 +91,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       allowedFunctionsUnqualified,
       allowedFunctionsQualified,
       tableIdentifierMatching,
+      defaultSchema: normalizedDefaultSchema,
     },
   };
 }

@@ -78,6 +78,7 @@ export interface Policy {
   allowedFunctions?: string[];
   tableIdentifierMatching?: 'strict' | 'caseInsensitive';
   resolver?: (unqualified: string) => string | null;
+  defaultSchema?: string;
 }
 ```
 
@@ -90,18 +91,46 @@ Defaults and behavior:
 - `allowedFunctions` defaults to `[]`, which means any function call is denied unless allowlisted.
 - `tableIdentifierMatching` defaults to `'strict'` (exact case-sensitive table matching).
 - Set `tableIdentifierMatching: 'caseInsensitive'` to preserve case-insensitive table matching.
-- Unqualified table references in SQL are denied unless you provide `resolver` to map them to `schema.table`.
+- Unqualified table references in SQL are denied unless you provide `defaultSchema` or `resolver` to map them to `schema.table`.
+- `defaultSchema`: when provided, unqualified `allowedTables` entries are auto-qualified with this schema, and unqualified SQL references resolve to it.
+- `resolver`: optional function to map unqualified names to qualified names. Takes precedence over `defaultSchema`.
+- Metadata schemas (`information_schema`, `pg_catalog`) are treated specially and must be explicitly allowlisted even when using `defaultSchema`. Setting `defaultSchema` to a metadata schema name does not grant automatic access.
 - Unqualified function allowlist entries (for example, `lower`) match only unqualified calls (`lower(...)`).
 - Schema-qualified function calls require schema-qualified allowlist entries (`pg_catalog.current_database`).
 
-Strict policy examples:
+Policy examples:
 
 ```ts
+// Explicit schema-qualified tables
 const strictPolicy = {
   allowedTables: ['public.users', 'analytics.events'],
   allowedFunctions: ['lower', 'pg_catalog.current_database'],
   resolver: (unqualified: string) =>
     unqualified === 'users' ? 'public.users' : null,
+};
+
+// Using defaultSchema for simpler configuration
+const defaultSchemaPolicy = {
+  defaultSchema: 'public',
+  allowedTables: ['users', 'orders', 'products'],
+  // Treated as ['public.users', 'public.orders', 'public.products']
+};
+
+// Mixed: defaultSchema + explicit qualified tables
+const mixedPolicy = {
+  defaultSchema: 'public',
+  allowedTables: ['users', 'analytics.events'],
+  // Treated as ['public.users', 'analytics.events']
+};
+
+// Resolver takes precedence over defaultSchema
+const resolverPolicy = {
+  defaultSchema: 'public',
+  allowedTables: ['public.users', 'archive.users'],
+  resolver: (name: string) =>
+    name === 'old_users' ? 'archive.users' : null,
+  // 'users' resolves to 'public.users' via defaultSchema
+  // 'old_users' resolves to 'archive.users' via resolver
 };
 ```
 
