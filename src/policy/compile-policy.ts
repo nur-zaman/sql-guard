@@ -24,6 +24,8 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'tableIdentifierMatching' must be either 'strict' or 'caseInsensitive'");
   }
 
+  const METADATA_SCHEMAS = new Set(['information_schema', 'pg_catalog']);
+
   const defaultSchema = policy.defaultSchema?.trim();
   if (defaultSchema !== undefined) {
     if (defaultSchema.length === 0) {
@@ -32,6 +34,10 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     // Validate defaultSchema is a valid identifier (no dots, special chars, etc.)
     if (defaultSchema.includes('.') || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(defaultSchema)) {
       return invalidPolicy("Policy 'defaultSchema' must be a valid SQL identifier without dots");
+    }
+    // Prevent defaultSchema from being a metadata schema to maintain explicit allowlisting
+    if (METADATA_SCHEMAS.has(defaultSchema.toLowerCase())) {
+      return invalidPolicy("Policy 'defaultSchema' cannot be a metadata schema (information_schema, pg_catalog). Metadata tables must be explicitly allowlisted.");
     }
   }
 

@@ -494,4 +494,40 @@ describe('defaultSchema', () => {
     const result = validateAgainstPolicy('SELECT * FROM public.users', policy);
     expect(result).toEqual({ ok: true, violations: [] });
   });
+
+  test('rejects defaultSchema as metadata schema (information_schema)', () => {
+    const policy: Policy = {
+      defaultSchema: 'information_schema',
+      allowedTables: ['tables'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM information_schema.tables', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("cannot be a metadata schema");
+  });
+
+  test('rejects defaultSchema as metadata schema (pg_catalog)', () => {
+    const policy: Policy = {
+      defaultSchema: 'pg_catalog',
+      allowedTables: ['pg_tables'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM pg_catalog.pg_tables', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("cannot be a metadata schema");
+  });
+
+  test('rejects defaultSchema with case variants of metadata schemas', () => {
+    const policy: Policy = {
+      defaultSchema: 'INFORMATION_SCHEMA',
+      allowedTables: ['tables'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM tables', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("cannot be a metadata schema");
+  });
 });
