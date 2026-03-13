@@ -376,6 +376,49 @@ describe('defaultSchema', () => {
     expect(unqualifiedResult.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
   });
 
+  test('auto-qualifies quoted identifiers containing dots', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['"audit.log"'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM public."audit.log"', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('resolves unqualified quoted identifiers with dots via defaultSchema', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['"audit.log"'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM "audit.log"', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('distinguishes between quoted and unquoted dotted names', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['"audit.log"', 'analytics.events'],
+    };
+
+    // "audit.log" is a single unqualified identifier
+    const auditResult = validateAgainstPolicy('SELECT * FROM "audit.log"', policy);
+    expect(auditResult).toEqual({ ok: true, violations: [] });
+
+    // analytics.events is already qualified
+    const analyticsResult = validateAgainstPolicy(
+      'SELECT * FROM analytics.events',
+      policy
+    );
+    expect(analyticsResult).toEqual({ ok: true, violations: [] });
+
+    // audit.log (unquoted) should not match "audit.log" (quoted)
+    const unquotedResult = validateAgainstPolicy('SELECT * FROM audit.log', policy);
+    expect(unquotedResult.ok).toBe(false);
+    expect(unquotedResult.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+  });
+
   test('resolver takes precedence over defaultSchema', () => {
     const policy: Policy = {
       defaultSchema: 'public',

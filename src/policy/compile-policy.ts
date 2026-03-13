@@ -1,5 +1,5 @@
 import { ErrorCode } from '../types/public';
-import { canonicalizeIdentifier, parseQualifiedName } from '../normalize/qualified-name';
+import { canonicalizeIdentifier, parseQualifiedName, isUnqualifiedName } from '../normalize/qualified-name';
 import type { Policy, TableIdentifierMatching, Violation } from '../types/public';
 
 export interface CompiledPolicy {
@@ -50,8 +50,9 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
   for (const table of policy.allowedTables) {
     let tableToCanonicalize = table;
 
-    // If entry has no dot and defaultSchema is set, auto-qualify it
-    if (normalizedDefaultSchema && typeof table === 'string' && !table.includes('.')) {
+    // If entry is unqualified and defaultSchema is set, auto-qualify it
+    // Uses quote-aware parsing to correctly handle quoted identifiers with dots (e.g., "audit.log")
+    if (normalizedDefaultSchema && isUnqualifiedName(table)) {
       tableToCanonicalize = `${normalizedDefaultSchema}.${table}`;
     }
 
