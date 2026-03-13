@@ -337,3 +337,240 @@ describe('policy engine orchestration', () => {
     expect(first.errorCode).toBe(ErrorCode.STATEMENT_NOT_ALLOWED);
   });
 });
+
+describe('defaultSchema', () => {
+  test('auto-qualifies unqualified allowedTables entries', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['users', 'orders'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM public.users', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('resolves unqualified SQL references via defaultSchema', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['users'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('keeps qualified allowedTables entries as-is', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['users', 'analytics.events'],
+    };
+
+    const qualifiedResult = validateAgainstPolicy(
+      'SELECT * FROM analytics.events',
+      policy
+    );
+    expect(qualifiedResult).toEqual({ ok: true, violations: [] });
+
+    const unqualifiedResult = validateAgainstPolicy('SELECT * FROM events', policy);
+    expect(unqualifiedResult.ok).toBe(false);
+    expect(unqualifiedResult.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+  });
+
+  test('auto-qualifies quoted identifiers containing dots', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['"audit.log"'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM public."audit.log"', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('resolves unqualified quoted identifiers with dots via defaultSchema', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['"audit.log"'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM "audit.log"', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('distinguishes between quoted and unquoted dotted names', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['"audit.log"', 'analytics.events'],
+    };
+
+    // "audit.log" is a single unqualified identifier
+    const auditResult = validateAgainstPolicy('SELECT * FROM "audit.log"', policy);
+    expect(auditResult).toEqual({ ok: true, violations: [] });
+
+    // analytics.events is already qualified
+    const analyticsResult = validateAgainstPolicy(
+      'SELECT * FROM analytics.events',
+      policy
+    );
+    expect(analyticsResult).toEqual({ ok: true, violations: [] });
+
+    // audit.log (unquoted) should not match "audit.log" (quoted)
+    const unquotedResult = validateAgainstPolicy('SELECT * FROM audit.log', policy);
+    expect(unquotedResult.ok).toBe(false);
+    expect(unquotedResult.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+  });
+
+  test('resolver takes precedence over defaultSchema', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['public.users', 'archive.users'],
+      resolver: (name) => (name === 'old_users' ? 'archive.users' : null),
+    };
+
+    // resolver maps old_users -> archive.users
+    const resolverResult = validateAgainstPolicy('SELECT * FROM old_users', policy);
+    expect(resolverResult).toEqual({ ok: true, violations: [] });
+
+    // defaultSchema maps users -> public.users
+    const defaultResult = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(defaultResult).toEqual({ ok: true, violations: [] });
+  });
+
+  test('rejects empty defaultSchema', () => {
+    const policy: Policy = {
+      defaultSchema: '',
+      allowedTables: ['users'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("defaultSchema' must be a non-empty string");
+  });
+
+  test('works with caseInsensitive matching', () => {
+    const policy: Policy = {
+      defaultSchema: 'PUBLIC',
+      allowedTables: ['users'],
+      tableIdentifierMatching: 'caseInsensitive',
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM Users', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('preserves existing behavior when neither defaultSchema nor resolver provided', () => {
+    const policy: Policy = {
+      allowedTables: ['public.users'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+    expect(result.violations[0].message).toContain("defaultSchema' or 'resolver'");
+  });
+
+  test('handles whitespace in defaultSchema', () => {
+    const policy: Policy = {
+      defaultSchema: '  public  ',
+      allowedTables: ['users'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM public.users', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('resolver returning empty string falls back to defaultSchema', () => {
+    const policy: Policy = {
+      defaultSchema: 'public',
+      allowedTables: ['public.users'],
+      resolver: () => '',
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('rejects defaultSchema with dot', () => {
+    const policy: Policy = {
+      defaultSchema: 'public.schema',
+      allowedTables: ['users'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("must be a valid SQL identifier without dots");
+  });
+
+  test('rejects defaultSchema with special characters', () => {
+    const policy: Policy = {
+      defaultSchema: 'my-schema',
+      allowedTables: ['users'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("must be a valid SQL identifier");
+  });
+
+  test('rejects defaultSchema starting with number', () => {
+    const policy: Policy = {
+      defaultSchema: '1schema',
+      allowedTables: ['users'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM users', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("must be a valid SQL identifier");
+  });
+
+  test('defaultSchema is normalized at compile time', () => {
+    const policy: Policy = {
+      defaultSchema: 'PUBLIC',
+      allowedTables: ['users'],
+      tableIdentifierMatching: 'caseInsensitive',
+    };
+
+    // The normalized defaultSchema should be 'public' (lowercase)
+    const result = validateAgainstPolicy('SELECT * FROM public.users', policy);
+    expect(result).toEqual({ ok: true, violations: [] });
+  });
+
+  test('rejects defaultSchema as metadata schema (information_schema)', () => {
+    const policy: Policy = {
+      defaultSchema: 'information_schema',
+      allowedTables: ['tables'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM information_schema.tables', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("cannot be a metadata schema");
+  });
+
+  test('rejects defaultSchema as metadata schema (pg_catalog)', () => {
+    const policy: Policy = {
+      defaultSchema: 'pg_catalog',
+      allowedTables: ['pg_tables'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM pg_catalog.pg_tables', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("cannot be a metadata schema");
+  });
+
+  test('rejects defaultSchema with case variants of metadata schemas', () => {
+    const policy: Policy = {
+      defaultSchema: 'INFORMATION_SCHEMA',
+      allowedTables: ['tables'],
+    };
+
+    const result = validateAgainstPolicy('SELECT * FROM tables', policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("cannot be a metadata schema");
+  });
+});

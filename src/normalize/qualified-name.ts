@@ -73,6 +73,28 @@ function parseIdentifierSegment(value: string): { value: string } | null {
   return { value: trimmed };
 }
 
+/**
+ * Check if a table name is unqualified (has no schema prefix).
+ * Uses quote-aware parsing to correctly handle quoted identifiers with dots.
+ *
+ * Examples:
+ * - `users` → true (unqualified)
+ * - `"audit.log"` → true (unqualified, dot is inside identifier)
+ * - `public.users` → false (qualified)
+ * - `"public"."users"` → false (qualified)
+ *
+ * @param value The table name to check
+ * @returns True if the name is unqualified (single segment)
+ */
+export function isUnqualifiedName(value: unknown): boolean {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const segments = splitQualifiedNameSegments(value.trim());
+  return segments !== null && segments.length === 1;
+}
+
 function splitQualifiedNameSegments(value: string): string[] | null {
   if (!value) {
     return null;

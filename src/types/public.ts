@@ -104,6 +104,20 @@ export interface Policy {
    * ```
    */
   resolver?: (unqualified: string) => string | null;
+
+  /**
+   * Default schema to use for unqualified table references.
+   * When provided, entries in `allowedTables` without a schema qualifier are
+   * automatically prefixed with this schema. Also used to resolve unqualified
+   * table references in SQL (unless a resolver is provided that returns non-null).
+   *
+   * @example
+   * ```typescript
+   * defaultSchema: 'public',
+   * allowedTables: ['users', 'orders'] // treated as ['public.users', 'public.orders']
+   * ```
+   */
+  defaultSchema?: string;
 }
 
 /**

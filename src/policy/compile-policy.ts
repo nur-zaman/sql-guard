@@ -1,5 +1,5 @@
 import { ErrorCode } from '../types/public';
-import { parseQualifiedName } from '../normalize/qualified-name';
+import { canonicalizeIdentifier, parseQualifiedName, isUnqualifiedName } from '../normalize/qualified-name';
 import type { Policy, TableIdentifierMatching, Violation } from '../types/public';
 
 export interface CompiledPolicy {
@@ -7,6 +7,7 @@ export interface CompiledPolicy {
   allowedFunctionsUnqualified: Set<string>;
   allowedFunctionsQualified: Set<string>;
   tableIdentifierMatching: TableIdentifierMatching;
+  defaultSchema?: string;  // The normalized default schema at compile time
 }
 
 type CompilePolicyResult =
@@ -23,9 +24,39 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'tableIdentifierMatching' must be either 'strict' or 'caseInsensitive'");
   }
 
+  const METADATA_SCHEMAS = new Set(['information_schema', 'pg_catalog']);
+
+  const defaultSchema = policy.defaultSchema?.trim();
+  if (defaultSchema !== undefined) {
+    if (defaultSchema.length === 0) {
+      return invalidPolicy("Policy 'defaultSchema' must be a non-empty string when provided");
+    }
+    // Validate defaultSchema is a valid identifier (no dots, special chars, etc.)
+    if (defaultSchema.includes('.') || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(defaultSchema)) {
+      return invalidPolicy("Policy 'defaultSchema' must be a valid SQL identifier without dots");
+    }
+    // Prevent defaultSchema from being a metadata schema to maintain explicit allowlisting
+    if (METADATA_SCHEMAS.has(defaultSchema.toLowerCase())) {
+      return invalidPolicy("Policy 'defaultSchema' cannot be a metadata schema (information_schema, pg_catalog). Metadata tables must be explicitly allowlisted.");
+    }
+  }
+
+  // Normalize defaultSchema at compile time for consistency with runtime normalization
+  const normalizedDefaultSchema = defaultSchema
+    ? canonicalizeIdentifier(defaultSchema, tableIdentifierMatching)
+    : undefined;
+
   const allowedTables = new Set<string>();
   for (const table of policy.allowedTables) {
-    const canonical = canonicalizeQualifiedName(table, tableIdentifierMatching);
+    let tableToCanonicalize = table;
+
+    // If entry is unqualified and defaultSchema is set, auto-qualify it
+    // Uses quote-aware parsing to correctly handle quoted identifiers with dots (e.g., "audit.log")
+    if (normalizedDefaultSchema && isUnqualifiedName(table)) {
+      tableToCanonicalize = `${normalizedDefaultSchema}.${table}`;
+    }
+
+    const canonical = canonicalizeQualifiedName(tableToCanonicalize, tableIdentifierMatching);
     if (!canonical) {
       return invalidPolicy(
         `Policy entry '${String(table)}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
@@ -67,6 +98,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       allowedFunctionsUnqualified,
       allowedFunctionsQualified,
       tableIdentifierMatching,
+      defaultSchema: normalizedDefaultSchema,
     },
   };
 }
