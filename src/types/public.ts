@@ -27,6 +27,8 @@ export enum ErrorCode {
   MULTI_STATEMENT_DISABLED = "MULTI_STATEMENT_DISABLED",
   /** Policy configuration is invalid */
   INVALID_POLICY = "INVALID_POLICY",
+  /** SQL query exceeds maximum length */
+  QUERY_TOO_LARGE = "QUERY_TOO_LARGE",
 }
 
 /**
@@ -118,6 +120,14 @@ export interface Policy {
    * ```
    */
   defaultSchema?: string;
+
+  /**
+   * Maximum allowed length for the SQL query string.
+   * Prevents denial of service attacks via extremely large queries.
+   * Defaults to 100000 characters if not specified.
+   * @default 100000
+   */
+  maxQueryLength?: number;
 }
 
 /**
