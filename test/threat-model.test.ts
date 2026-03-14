@@ -78,4 +78,31 @@ describe('threat model regression', () => {
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe(ErrorCode.MULTI_STATEMENT_DISABLED);
   });
+
+  test('query_too_large: extremely large query is rejected before parsing to prevent DoS', () => {
+    // Generate a query larger than the default 100,000 characters
+    const largeQuery = "SELECT '" + "A".repeat(100001) + "' FROM allowed_table";
+
+    const result = validateAgainstPolicy(largeQuery, {
+      allowedTables: ['public.allowed_table']
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.QUERY_TOO_LARGE);
+    expect(result.violations[0].type).toBe('policy');
+    expect(result.violations[0].message).toContain('exceeds maximum allowed length');
+  });
+
+  test('query_too_large: maxQueryLength can be configured', () => {
+    const query = "SELECT * FROM allowed_table WHERE id = 1"; // Length ~ 40
+
+    const result = validateAgainstPolicy(query, {
+      allowedTables: ['public.allowed_table'],
+      maxQueryLength: 20
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.QUERY_TOO_LARGE);
+    expect(result.violations[0].type).toBe('policy');
+  });
 });

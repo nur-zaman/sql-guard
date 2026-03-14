@@ -8,6 +8,7 @@ export interface CompiledPolicy {
   allowedFunctionsQualified: Set<string>;
   tableIdentifierMatching: TableIdentifierMatching;
   defaultSchema?: string;  // The normalized default schema at compile time
+  maxQueryLength: number;
 }
 
 type CompilePolicyResult =
@@ -39,6 +40,11 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     if (METADATA_SCHEMAS.has(defaultSchema.toLowerCase())) {
       return invalidPolicy("Policy 'defaultSchema' cannot be a metadata schema (information_schema, pg_catalog). Metadata tables must be explicitly allowlisted.");
     }
+  }
+
+  const maxQueryLength = policy.maxQueryLength ?? 100000;
+  if (typeof maxQueryLength !== 'number' || maxQueryLength <= 0 || !Number.isInteger(maxQueryLength)) {
+    return invalidPolicy("Policy 'maxQueryLength' must be a positive integer");
   }
 
   // Normalize defaultSchema at compile time for consistency with runtime normalization
@@ -99,6 +105,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       allowedFunctionsQualified,
       tableIdentifierMatching,
       defaultSchema: normalizedDefaultSchema,
+      maxQueryLength,
     },
   };
 }

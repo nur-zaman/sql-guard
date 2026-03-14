@@ -1,0 +1,4 @@
+## 2024-03-14 - Prevent Parser Denial of Service via Extremely Large Queries
+**Vulnerability:** The library parsed untrusted SQL input without checking its length. A malicious actor could pass an extremely large string (e.g., a 50MB string literal), causing the parser to run out of memory or consume excessive CPU, leading to a Denial of Service (DoS) vulnerability.
+**Learning:** Even though the library's goal is to parse and validate, the parsing step itself is computationally expensive. It's a common oversight to assume that a parser handles all inputs efficiently. Bounded inputs are necessary before handing off data to complex parsing logic.
+**Prevention:** Always enforce a maximum length on untrusted input strings before processing them with complex tools like parsers or regular expressions. A `maxQueryLength` limit was added to the configuration.

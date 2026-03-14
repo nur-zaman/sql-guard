@@ -49,6 +49,20 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
   }
 
   const compiledPolicy = compiledPolicyResult.compiled;
+
+  if (sql.length > compiledPolicy.maxQueryLength) {
+    return {
+      ok: false,
+      violations: [
+        {
+          type: 'policy',
+          message: `SQL query exceeds maximum allowed length of ${compiledPolicy.maxQueryLength} characters`,
+        },
+      ],
+      errorCode: ErrorCode.QUERY_TOO_LARGE,
+    };
+  }
+
   const parsed = parseSql(sql);
   if (!parsed.success) {
     const parseViolation: Violation = {
@@ -234,18 +248,20 @@ function precedenceOf(errorCode: ErrorCode): number {
   switch (errorCode) {
     case ErrorCode.PARSE_ERROR:
       return 0;
-    case ErrorCode.INVALID_POLICY:
+    case ErrorCode.QUERY_TOO_LARGE:
       return 1;
-    case ErrorCode.STATEMENT_NOT_ALLOWED:
+    case ErrorCode.INVALID_POLICY:
       return 2;
-    case ErrorCode.TABLE_NOT_ALLOWED:
+    case ErrorCode.STATEMENT_NOT_ALLOWED:
       return 3;
-    case ErrorCode.FUNCTION_NOT_ALLOWED:
+    case ErrorCode.TABLE_NOT_ALLOWED:
       return 4;
-    case ErrorCode.MULTI_STATEMENT_DISABLED:
+    case ErrorCode.FUNCTION_NOT_ALLOWED:
       return 5;
+    case ErrorCode.MULTI_STATEMENT_DISABLED:
+      return 6;
     case ErrorCode.UNSUPPORTED_SQL_FEATURE:
     default:
-      return 6;
+      return 7;
   }
 }
