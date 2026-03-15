@@ -154,7 +154,7 @@ function isRelationStatementType(type: unknown): boolean {
 
 function canonicalName(name: string): string {
   if (name.startsWith('"') && name.endsWith('"') && name.length >= 2) {
-    return name.slice(1, -1).toLowerCase();
+    return name.slice(1, -1).replace(/""/g, '"');
   }
   return name.toLowerCase();
 }
