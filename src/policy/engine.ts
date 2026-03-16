@@ -39,6 +39,32 @@ const METADATA_SCHEMAS = new Set(['information_schema', 'pg_catalog']);
  * @returns ValidationResult indicating success or failure with violations
  */
 export function validateAgainstPolicy(sql: string, policy: Policy): ValidationResult {
+  if (typeof sql !== 'string') {
+    return {
+      ok: false,
+      violations: [
+        {
+          type: 'parse',
+          message: 'SQL input must be a string',
+        },
+      ],
+      errorCode: ErrorCode.PARSE_ERROR,
+    };
+  }
+
+  if (!policy || typeof policy !== 'object') {
+    return {
+      ok: false,
+      violations: [
+        {
+          type: 'policy',
+          message: 'Policy must be an object',
+        },
+      ],
+      errorCode: ErrorCode.INVALID_POLICY,
+    };
+  }
+
   const compiledPolicyResult = compilePolicy(policy);
   if (!compiledPolicyResult.success) {
     return {
