@@ -2,3 +2,7 @@
 **Vulnerability:** The library parsed untrusted SQL input without checking its length. A malicious actor could pass an extremely large string (e.g., a 50MB string literal), causing the parser to run out of memory or consume excessive CPU, leading to a Denial of Service (DoS) vulnerability.
 **Learning:** Even though the library's goal is to parse and validate, the parsing step itself is computationally expensive. It's a common oversight to assume that a parser handles all inputs efficiently. Bounded inputs are necessary before handing off data to complex parsing logic.
 **Prevention:** Always enforce a maximum length on untrusted input strings before processing them with complex tools like parsers or regular expressions. A `maxQueryLength` limit was added to the configuration.
+## 2025-02-14 - Type Confusion Input Validation Gap
+**Vulnerability:** The library assumed input to `validate(sql, ...)` was always a string. If an object, null, or array was passed, `sql.length` or string operations like `.trim()` threw unhandled exceptions, leading to DoS risks or error stack trace leakage in applications exposing the guard rail.
+**Learning:** Type confusion across API boundaries is a critical vector. We must explicitly type check user input (e.g. `typeof sql === 'string'`) instead of implicitly trusting TypeScript annotations when working as a boundary library.
+**Prevention:** Add explicit runtime validation for primary input arguments to functions that act as trust boundaries, even in strictly typed TS codebases.
