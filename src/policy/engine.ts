@@ -39,6 +39,19 @@ const METADATA_SCHEMAS = new Set(['information_schema', 'pg_catalog']);
  * @returns ValidationResult indicating success or failure with violations
  */
 export function validateAgainstPolicy(sql: string, policy: Policy): ValidationResult {
+  if (typeof sql !== 'string') {
+    return {
+      ok: false,
+      violations: [
+        {
+          type: 'parse',
+          message: 'SQL input must be a string',
+        },
+      ],
+      errorCode: ErrorCode.PARSE_ERROR,
+    };
+  }
+
   const compiledPolicyResult = compilePolicy(policy);
   if (!compiledPolicyResult.success) {
     return {

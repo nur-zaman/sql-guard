@@ -14,6 +14,18 @@ describe('validate', () => {
     expect(typeof result.ok).toBe('boolean');
     expect(Array.isArray(result.violations)).toBe(true);
   });
+
+  test('returns parse error when sql input is not a string', () => {
+    const policy: Policy = { allowedTables: ['public.users'] };
+    const result = validate(null as any, policy);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe('PARSE_ERROR');
+    expect(result.violations[0].message).toBe('SQL input must be a string');
+
+    const result2 = validate({} as any, policy);
+    expect(result2.ok).toBe(false);
+    expect(result2.errorCode).toBe('PARSE_ERROR');
+  });
 });
 
 describe('assertSafeSql', () => {
