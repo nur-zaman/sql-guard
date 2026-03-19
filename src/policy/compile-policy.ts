@@ -16,6 +16,10 @@ type CompilePolicyResult =
   | { success: false; errorCode: ErrorCode.INVALID_POLICY; violation: Violation };
 
 export function compilePolicy(policy: Policy): CompilePolicyResult {
+  if (!policy || typeof policy !== 'object') {
+    return invalidPolicy("Policy must be an object");
+  }
+
   if (!Array.isArray(policy.allowedTables)) {
     return invalidPolicy("Policy 'allowedTables' must be an array of schema-qualified names");
   }
@@ -26,6 +30,10 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
   }
 
   const METADATA_SCHEMAS = new Set(['information_schema', 'pg_catalog']);
+
+  if (policy.defaultSchema !== undefined && typeof policy.defaultSchema !== 'string') {
+    return invalidPolicy("Policy 'defaultSchema' must be a string when provided");
+  }
 
   const defaultSchema = policy.defaultSchema?.trim();
   if (defaultSchema !== undefined) {
