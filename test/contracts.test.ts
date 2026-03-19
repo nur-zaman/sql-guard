@@ -37,6 +37,29 @@ describe('Policy interface', () => {
     const policy: Policy = { allowedTables: ['public.users'] };
     expect(policy.allowedTables).toEqual(['public.users']);
   });
+
+  test('validates policy object type at runtime', () => {
+    const resultNull = validate('SELECT 1', null as any);
+    expect(resultNull.ok).toBe(false);
+    expect(resultNull.errorCode).toBe(ErrorCode.INVALID_POLICY);
+
+    const resultUndefined = validate('SELECT 1', undefined as any);
+    expect(resultUndefined.ok).toBe(false);
+    expect(resultUndefined.errorCode).toBe(ErrorCode.INVALID_POLICY);
+
+    const resultString = validate('SELECT 1', "policy" as any);
+    expect(resultString.ok).toBe(false);
+    expect(resultString.errorCode).toBe(ErrorCode.INVALID_POLICY);
+  });
+
+  test('validates defaultSchema type at runtime', () => {
+    const result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      defaultSchema: 123 as any
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+  });
 });
 
 describe('ValidationResult', () => {
