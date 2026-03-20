@@ -90,6 +90,14 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
   }
 
+  if (policy.allowMultiStatement !== undefined && typeof policy.allowMultiStatement !== 'boolean') {
+    return invalidPolicy("Policy 'allowMultiStatement' must be a boolean when provided");
+  }
+
+  if (policy.resolver !== undefined && typeof policy.resolver !== 'function') {
+    return invalidPolicy("Policy 'resolver' must be a function when provided");
+  }
+
   for (const fn of policy.allowedFunctions ?? []) {
     const canonicalFunction = canonicalizeFunctionEntry(fn);
     if (!canonicalFunction) {
