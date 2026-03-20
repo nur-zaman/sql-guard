@@ -60,6 +60,24 @@ describe('Policy interface', () => {
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
   });
+
+  test('validates allowMultiStatement type at runtime', () => {
+    const result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowMultiStatement: "false" as any
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+  });
+
+  test('validates resolver type at runtime', () => {
+    const result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      resolver: "not a function" as any
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+  });
 });
 
 describe('ValidationResult', () => {
