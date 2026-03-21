@@ -68,7 +68,10 @@ export function extractAllTables(ast: unknown): TableReference[] {
   // Deduplicate
   const seen = new Set<string>();
   return tables.filter((table) => {
-    const key = `${(table.schema ?? '').toLowerCase()}.${table.name.toLowerCase()}`;
+    // Deduplicate using raw AST names to prevent case-insensitive deduplication from hiding tables
+    // Since node-sql-parser preserves case for AST identifiers, mixing "SECRET_TABLE" and secret_table
+    // will produce distinct strings here, preventing the unauthorized one from being incorrectly deduped.
+    const key = `${table.schema ?? ''}.${table.name}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
