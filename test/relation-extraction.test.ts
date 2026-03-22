@@ -73,4 +73,11 @@ describe('extractAllTables', () => {
     const tables = extractAllTables(result.statements[0].raw);
     expect(tables.map((table) => table.name)).toContain('users');
   });
+
+  test('prevents deduplication shadowing of unquoted and quoted tables', () => {
+    const result = parseSql('SELECT * FROM "SECRET_TABLE", secret_table');
+    const tables = extractAllTables(result.statements[0].raw);
+    expect(tables).toHaveLength(2);
+    expect(tables.map((table) => table.name).sort()).toEqual(['SECRET_TABLE', 'secret_table']);
+  });
 });

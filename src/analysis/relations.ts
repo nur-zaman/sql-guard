@@ -68,7 +68,7 @@ export function extractAllTables(ast: unknown): TableReference[] {
   // Deduplicate
   const seen = new Set<string>();
   return tables.filter((table) => {
-    const key = `${(table.schema ?? '').toLowerCase()}.${table.name.toLowerCase()}`;
+    const key = `${table.schema ?? ''}.${table.name}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
