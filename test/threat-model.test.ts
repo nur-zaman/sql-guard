@@ -25,6 +25,18 @@ describe('threat model regression', () => {
     expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
   });
 
+  test('cte_shadowing_bypass: Case-sensitive CTE names do not shadow different-cased unauthorized tables', () => {
+    // If AST deduplication uses .toLowerCase() on raw string values blindly,
+    // the uppercase CTE name "SECRET_TABLE" would be lowercased to 'secret_table',
+    // preventing the actual lowercase `secret_table` from being reported as a violation.
+    const result = validateAgainstPolicy(
+      'WITH "SECRET_TABLE" AS (SELECT * FROM public.users) SELECT * FROM public.secret_table',
+      basePolicy
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+  });
+
   test('alias_collision_bypass: alias names do not suppress unauthorized tables', () => {
     const result = validateAgainstPolicy(
       'SELECT * FROM public.users secret_table JOIN public.secret_table s ON secret_table.id = s.user_id',
