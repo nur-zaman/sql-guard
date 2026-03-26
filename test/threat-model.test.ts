@@ -25,12 +25,13 @@ describe('threat model regression', () => {
     expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
   });
 
-  test('cte_shadowing_bypass: Case-sensitive CTE names do not shadow different-cased unauthorized tables', () => {
-    // If AST deduplication uses .toLowerCase() on raw string values blindly,
-    // the uppercase CTE name "SECRET_TABLE" would be lowercased to 'secret_table',
-    // preventing the actual lowercase `secret_table` from being reported as a violation.
+  test('ast_dedup_shadowing: differently cased identifiers do not shadow each other', () => {
+    // Before the fix, `extractAllTables` used `.toLowerCase()` on the AST table names during deduplication.
+    // If an attacker queried both the allowed lowercase table and a disallowed uppercase table
+    // (e.g., `SELECT * FROM public.users, public."USERS"`), the uppercase "USERS" would be deduplicated away
+    // because its lowercase version matched the allowed `users`.
     const result = validateAgainstPolicy(
-      'WITH "SECRET_TABLE" AS (SELECT * FROM public.users) SELECT * FROM public.secret_table',
+      'SELECT * FROM public.users, public."USERS"',
       basePolicy
     );
     expect(result.ok).toBe(false);
