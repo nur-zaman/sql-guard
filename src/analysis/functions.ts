@@ -8,8 +8,8 @@ export function extractAllFunctions(ast: unknown): FunctionCall[] {
     if (typeof name !== 'string' || name.length === 0) return;
 
     functions.push({
-      name: name.toLowerCase(),
-      schema: typeof schema === 'string' && schema.length > 0 ? schema.toLowerCase() : undefined,
+      name,
+      schema: typeof schema === 'string' && schema.length > 0 ? schema : undefined,
     });
   }
 
@@ -43,7 +43,7 @@ function extractFunctionIdentity(
 ): { name: string; schema?: string } | null {
   if (node.type === 'aggr_func') {
     if (typeof node.name === 'string' && node.name.length > 0) {
-      return { name: node.name.toLowerCase() };
+      return { name: canonicalName(node.name) };
     }
     return null;
   }
@@ -54,22 +54,35 @@ function extractFunctionIdentity(
 
   const fnName = asRecord(node.name);
   const schemaNode = asRecord(fnName.schema);
-  const schema = typeof schemaNode.value === 'string' ? schemaNode.value : undefined;
+  let schema: string | undefined;
+  if (typeof schemaNode.value === 'string') {
+    schema = schemaNode.type === 'double_quote_string' ? schemaNode.value : canonicalName(schemaNode.value);
+  }
 
   if (typeof fnName.name === 'string' && fnName.name.length > 0) {
-    return { name: fnName.name.toLowerCase(), schema: schema?.toLowerCase() };
+    return { name: canonicalName(fnName.name), schema };
   }
 
   if (Array.isArray(fnName.name)) {
     for (const part of fnName.name) {
       const partRecord = asRecord(part);
       if (typeof partRecord.value === 'string' && partRecord.value.length > 0) {
-        return { name: partRecord.value.toLowerCase(), schema: schema?.toLowerCase() };
+        if (partRecord.type === 'double_quote_string') {
+          return { name: partRecord.value, schema };
+        }
+        return { name: canonicalName(partRecord.value), schema };
       }
     }
   }
 
   return null;
+}
+
+function canonicalName(name: string): string {
+  if (name.startsWith('"') && name.endsWith('"') && name.length >= 2) {
+    return name.slice(1, -1).replace(/""/g, '"');
+  }
+  return name.toLowerCase();
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

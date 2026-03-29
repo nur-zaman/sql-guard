@@ -128,4 +128,12 @@ describe('function extraction and policy', () => {
     expect(result.errorCode).toBe(ErrorCode.FUNCTION_NOT_ALLOWED);
     expect(result.violations).toEqual([{ schema: 'pg_catalog', name: 'current_database' }]);
   });
+
+  test('prevents deduplication shadowing of unquoted and quoted functions', () => {
+    const parsed = parseSql('SELECT "SECRET_FUNCTION"(), secret_function()');
+    expect(parsed.success).toBe(true);
+
+    expect(parsed.statements[0].functions).toHaveLength(2);
+    expect(parsed.statements[0].functions.map(f => f.name).sort()).toEqual(['SECRET_FUNCTION', 'secret_function']);
+  });
 });
