@@ -69,8 +69,8 @@ function checkFunctionsAllowedWithAllowlists(
   const seenViolations = new Set<string>();
 
   for (const fn of functions) {
-    const normalizedName = fn.name.toLowerCase();
-    const normalizedSchema = typeof fn.schema === 'string' ? fn.schema.toLowerCase() : undefined;
+    const normalizedName = fn.name;
+    const normalizedSchema = typeof fn.schema === 'string' ? fn.schema : undefined;
     const allowed = normalizedSchema
       ? allowlists.qualified.has(`${normalizedSchema}.${normalizedName}`)
       : allowlists.unqualified.has(normalizedName);
@@ -99,7 +99,11 @@ function checkFunctionsAllowedWithAllowlists(
 }
 
 function normalize(value: string): string {
-  return value.toLowerCase().trim();
+  const trimmed = value.trim();
+  if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
+    return trimmed.slice(1, -1).replace(/""/g, '"');
+  }
+  return trimmed.toLowerCase();
 }
 
 function compileFunctionAllowlists(allowedFunctions: string[]): {

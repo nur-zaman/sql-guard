@@ -134,21 +134,28 @@ function canonicalizeFunctionEntry(value: unknown):
     return null;
   }
 
-  const cleaned = value.trim().toLowerCase();
+  const cleaned = value.trim();
   if (!cleaned) {
     return null;
   }
 
   const parts = cleaned.split('.');
   if (parts.length === 1 && parts[0].length > 0) {
-    return { kind: 'unqualified', value: parts[0] };
+    return { kind: 'unqualified', value: normalizeFunctionPart(parts[0]) };
   }
 
   if (parts.length === 2 && parts[0].length > 0 && parts[1].length > 0) {
-    return { kind: 'qualified', value: `${parts[0]}.${parts[1]}` };
+    return { kind: 'qualified', value: `${normalizeFunctionPart(parts[0])}.${normalizeFunctionPart(parts[1])}` };
   }
 
   return null;
+}
+
+function normalizeFunctionPart(part: string): string {
+  if (part.startsWith('"') && part.endsWith('"') && part.length >= 2) {
+    return part.slice(1, -1).replace(/""/g, '"');
+  }
+  return part.toLowerCase();
 }
 
 export function canonicalizeQualifiedName(

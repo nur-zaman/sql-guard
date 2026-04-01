@@ -8,8 +8,8 @@ export function extractAllFunctions(ast: unknown): FunctionCall[] {
     if (typeof name !== 'string' || name.length === 0) return;
 
     functions.push({
-      name: name.toLowerCase(),
-      schema: typeof schema === 'string' && schema.length > 0 ? schema.toLowerCase() : undefined,
+      name: name,
+      schema: typeof schema === 'string' && schema.length > 0 ? schema : undefined,
     });
   }
 
@@ -56,20 +56,33 @@ function extractFunctionIdentity(
   const schemaNode = asRecord(fnName.schema);
   const schema = typeof schemaNode.value === 'string' ? schemaNode.value : undefined;
 
+  const normalizedSchema = normalizeFunctionPartFromAst(schemaNode, schema);
+
   if (typeof fnName.name === 'string' && fnName.name.length > 0) {
-    return { name: fnName.name.toLowerCase(), schema: schema?.toLowerCase() };
+    return { name: fnName.name.toLowerCase(), schema: normalizedSchema };
   }
 
   if (Array.isArray(fnName.name)) {
     for (const part of fnName.name) {
       const partRecord = asRecord(part);
       if (typeof partRecord.value === 'string' && partRecord.value.length > 0) {
-        return { name: partRecord.value.toLowerCase(), schema: schema?.toLowerCase() };
+        return {
+          name: partRecord.type === 'double_quote_string' ? partRecord.value : partRecord.value.toLowerCase(),
+          schema: normalizedSchema
+        };
       }
     }
   }
 
   return null;
+}
+
+function normalizeFunctionPartFromAst(node: Record<string, unknown>, rawValue: string | undefined): string | undefined {
+  if (!rawValue) return undefined;
+  if (node.type === 'double_quote_string') {
+    return rawValue;
+  }
+  return rawValue.toLowerCase();
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
