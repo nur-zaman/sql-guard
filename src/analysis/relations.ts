@@ -97,6 +97,9 @@ function extractCteName(value: unknown): string | null {
 
   const typed = value as Record<string, unknown>;
   if (typeof typed.value === 'string' && typed.value.length > 0) {
+    if (typed.type === 'double_quote_string') {
+      return `"${typed.value.replace(/"/g, '""')}"`;
+    }
     return typed.value;
   }
   return null;
