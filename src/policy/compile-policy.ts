@@ -86,8 +86,21 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
   }
 
-  if (policy.allowedStatements !== undefined && !Array.isArray(policy.allowedStatements)) {
-    return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
+  if (policy.allowedStatements !== undefined) {
+    if (!Array.isArray(policy.allowedStatements)) {
+      return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
+    }
+    const validStatements = ['select', 'insert', 'update', 'delete'];
+    for (const stmt of policy.allowedStatements) {
+      if (typeof stmt !== 'string') {
+        let strVal = 'unknown';
+        try { strVal = String(stmt); } catch (e) {}
+        return invalidPolicy(`Policy entry '${strVal}' is invalid. allowedStatements entries must be strings`);
+      }
+      if (!validStatements.includes(stmt.toLowerCase())) {
+        return invalidPolicy(`Policy entry '${stmt}' is invalid. allowedStatements entries must be one of: ${validStatements.join(', ')}`);
+      }
+    }
   }
 
   if (policy.allowMultiStatement !== undefined && typeof policy.allowMultiStatement !== 'boolean') {

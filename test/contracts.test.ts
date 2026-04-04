@@ -78,6 +78,48 @@ describe('Policy interface', () => {
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
   });
+
+  test('validates allowedStatements type at runtime', () => {
+    // Should reject non-arrays
+    let result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowedStatements: 'select' as any,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("must be an array");
+
+    // Should reject arrays with non-string elements
+    result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowedStatements: ['select', 123 as any],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("must be strings");
+
+    // Should reject arrays with invalid statement strings
+    result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowedStatements: ['select', 'drop' as any],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("must be one of: select, insert, update, delete");
+
+    // Should handle throwing objects safely
+    result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowedStatements: [{toString: () => { throw new Error('pwnd'); }} as any],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("must be strings");
+  });
 });
 
 describe('ValidationResult', () => {
