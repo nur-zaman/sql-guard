@@ -25,6 +25,19 @@ describe('threat model regression', () => {
     expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
   });
 
+  test('ast_dedup_shadowing: differently cased identifiers do not shadow each other', () => {
+    // Before the fix, `extractAllTables` used `.toLowerCase()` on the AST table names during deduplication.
+    // If an attacker queried both the allowed lowercase table and a disallowed uppercase table
+    // (e.g., `SELECT * FROM public.users, public."USERS"`), the uppercase "USERS" would be deduplicated away
+    // because its lowercase version matched the allowed `users`.
+    const result = validateAgainstPolicy(
+      'SELECT * FROM public.users, public."USERS"',
+      basePolicy
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.TABLE_NOT_ALLOWED);
+  });
+
   test('alias_collision_bypass: alias names do not suppress unauthorized tables', () => {
     const result = validateAgainstPolicy(
       'SELECT * FROM public.users secret_table JOIN public.secret_table s ON secret_table.id = s.user_id',
