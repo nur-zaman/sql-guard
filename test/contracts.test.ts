@@ -78,6 +78,35 @@ describe('Policy interface', () => {
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
   });
+
+  test('validates allowedTables contains only strings', () => {
+    const maliciousObj = {
+      toString: () => {
+        throw new Error('Malicious toString');
+      }
+    };
+    const result = validate('SELECT 1', {
+      allowedTables: [maliciousObj as any]
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toBe("Policy 'allowedTables' must only contain strings");
+  });
+
+  test('validates allowedFunctions contains only strings', () => {
+    const maliciousObj = {
+      toString: () => {
+        throw new Error('Malicious toString');
+      }
+    };
+    const result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowedFunctions: [maliciousObj as any]
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toBe("Policy 'allowedFunctions' must only contain strings");
+  });
 });
 
 describe('ValidationResult', () => {

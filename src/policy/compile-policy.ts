@@ -24,6 +24,12 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'allowedTables' must be an array of schema-qualified names");
   }
 
+  for (const table of policy.allowedTables) {
+    if (typeof table !== 'string') {
+      return invalidPolicy("Policy 'allowedTables' must only contain strings");
+    }
+  }
+
   const tableIdentifierMatching = policy.tableIdentifierMatching ?? 'strict';
   if (tableIdentifierMatching !== 'strict' && tableIdentifierMatching !== 'caseInsensitive') {
     return invalidPolicy("Policy 'tableIdentifierMatching' must be either 'strict' or 'caseInsensitive'");
@@ -82,8 +88,15 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
   const allowedFunctionsUnqualified = new Set<string>();
   const allowedFunctionsQualified = new Set<string>();
 
-  if (policy.allowedFunctions !== undefined && !Array.isArray(policy.allowedFunctions)) {
-    return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
+  if (policy.allowedFunctions !== undefined) {
+    if (!Array.isArray(policy.allowedFunctions)) {
+      return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
+    }
+    for (const fn of policy.allowedFunctions) {
+      if (typeof fn !== 'string') {
+        return invalidPolicy("Policy 'allowedFunctions' must only contain strings");
+      }
+    }
   }
 
   if (policy.allowedStatements !== undefined && !Array.isArray(policy.allowedStatements)) {
