@@ -8,7 +8,7 @@
 
 import { ParsedStatement } from '../parser/types';
 import { ErrorCode } from '../types/public';
-import type { Policy } from '../types/public';
+import type { CompiledPolicy } from './compile-policy';
 
 /**
  * Result of checking if a statement type is allowed.
@@ -36,7 +36,7 @@ export type StatementType = 'select' | 'insert' | 'update' | 'delete';
  */
 export function isStatementAllowed(
   statement: ParsedStatement,
-  policy: Policy
+  policy: CompiledPolicy
 ): StatementCheckResult {
   const type = statement.type;
 
@@ -48,13 +48,13 @@ export function isStatementAllowed(
     };
   }
 
-  const allowedStatements = policy.allowedStatements ?? ['select'];
+  const allowedStatements = policy.allowedStatements;
 
-  if (!allowedStatements.includes(type)) {
+  if (!allowedStatements.has(type)) {
     return {
       allowed: false,
       errorCode: ErrorCode.STATEMENT_NOT_ALLOWED,
-      errorMessage: `Statement type '${type}' not allowed. Allowed: ${allowedStatements.join(', ')}`,
+      errorMessage: `Statement type '${type}' not allowed. Allowed: ${Array.from(allowedStatements).join(', ')}`,
     };
   }
 
@@ -70,9 +70,9 @@ export function isStatementAllowed(
  */
 export function checkMultiStatementPolicy(
   statements: ParsedStatement[],
-  policy: Policy
+  policy: CompiledPolicy
 ): StatementCheckResult {
-  const allowMulti = policy.allowMultiStatement ?? false;
+  const allowMulti = policy.allowMultiStatement;
 
   if (!allowMulti && statements.length > 1) {
     return {

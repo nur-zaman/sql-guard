@@ -6,7 +6,7 @@ import { Policy, ErrorCode } from '../src/index';
 describe('isStatementAllowed', () => {
   test('allows SELECT by default', () => {
     const stmt: ParsedStatement = { type: 'select', tables: [], functions: [], raw: {} };
-    const policy: Policy = { allowedTables: ['public.users'] };
+    const policy: any = { allowedStatements: new Set(['select']) };
 
     const result = isStatementAllowed(stmt, policy);
     expect(result.allowed).toBe(true);
@@ -14,7 +14,7 @@ describe('isStatementAllowed', () => {
 
   test('denies INSERT by default', () => {
     const stmt: ParsedStatement = { type: 'insert', tables: [], functions: [], raw: {} };
-    const policy: Policy = { allowedTables: ['public.users'] };
+    const policy: any = { allowedStatements: new Set(['select']) };
 
     const result = isStatementAllowed(stmt, policy);
     expect(result.allowed).toBe(false);
@@ -23,9 +23,8 @@ describe('isStatementAllowed', () => {
 
   test('allows configured statement types', () => {
     const stmt: ParsedStatement = { type: 'insert', tables: [], functions: [], raw: {} };
-    const policy: Policy = {
-      allowedTables: ['public.users'],
-      allowedStatements: ['select', 'insert'],
+    const policy: any = {
+      allowedStatements: new Set(['select', 'insert']),
     };
 
     const result = isStatementAllowed(stmt, policy);
@@ -34,7 +33,7 @@ describe('isStatementAllowed', () => {
 
   test('denies unknown statement type', () => {
     const stmt: ParsedStatement = { type: 'unknown', tables: [], functions: [], raw: {} };
-    const policy: Policy = { allowedTables: ['public.users'] };
+    const policy: any = { allowedStatements: new Set(['select']) };
 
     const result = isStatementAllowed(stmt, policy);
     expect(result.allowed).toBe(false);
@@ -45,7 +44,7 @@ describe('isStatementAllowed', () => {
 describe('checkMultiStatementPolicy', () => {
   test('allows single statement by default', () => {
     const stmts: ParsedStatement[] = [{ type: 'select', tables: [], functions: [], raw: {} }];
-    const policy: Policy = { allowedTables: ['public.users'] };
+    const policy: any = { allowMultiStatement: false };
 
     const result = checkMultiStatementPolicy(stmts, policy);
     expect(result.allowed).toBe(true);
@@ -56,7 +55,7 @@ describe('checkMultiStatementPolicy', () => {
       { type: 'select', tables: [], functions: [], raw: {} },
       { type: 'select', tables: [], functions: [], raw: {} },
     ];
-    const policy: Policy = { allowedTables: ['public.users'] };
+    const policy: any = { allowMultiStatement: false };
 
     const result = checkMultiStatementPolicy(stmts, policy);
     expect(result.allowed).toBe(false);
@@ -68,8 +67,7 @@ describe('checkMultiStatementPolicy', () => {
       { type: 'select', tables: [], functions: [], raw: {} },
       { type: 'select', tables: [], functions: [], raw: {} },
     ];
-    const policy: Policy = {
-      allowedTables: ['public.users'],
+    const policy: any = {
       allowMultiStatement: true,
     };
 

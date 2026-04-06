@@ -37,7 +37,7 @@ describe('policy engine orchestration', () => {
       {
         type: 'policy',
         message:
-          "Policy entry 'users' is invalid. allowedTables entries must be schema-qualified as 'schema.table'",
+          "Policy entry for allowedTables is invalid. allowedTables entries must be schema-qualified as 'schema.table'",
       },
     ]);
   });

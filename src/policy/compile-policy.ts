@@ -6,6 +6,8 @@ export interface CompiledPolicy {
   allowedTables: Set<string>;
   allowedFunctionsUnqualified: Set<string>;
   allowedFunctionsQualified: Set<string>;
+  allowedStatements: Set<string>;
+  allowMultiStatement: boolean;
   tableIdentifierMatching: TableIdentifierMatching;
   defaultSchema?: string;  // The normalized default schema at compile time
   maxQueryLength: number;
@@ -22,6 +24,12 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
 
   if (!Array.isArray(policy.allowedTables)) {
     return invalidPolicy("Policy 'allowedTables' must be an array of schema-qualified names");
+  }
+
+  for (let i = 0; i < policy.allowedTables.length; i++) {
+    if (typeof policy.allowedTables[i] !== 'string') {
+      return invalidPolicy(`Policy 'allowedTables' must be an array of strings. Element at index ${i} is of type ${typeof policy.allowedTables[i]}`);
+    }
   }
 
   const tableIdentifierMatching = policy.tableIdentifierMatching ?? 'strict';
@@ -73,7 +81,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     const canonical = canonicalizeQualifiedName(tableToCanonicalize, tableIdentifierMatching);
     if (!canonical) {
       return invalidPolicy(
-        `Policy entry '${String(table)}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
+        `Policy entry for allowedTables is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
       );
     }
     allowedTables.add(canonical);
@@ -82,12 +90,30 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
   const allowedFunctionsUnqualified = new Set<string>();
   const allowedFunctionsQualified = new Set<string>();
 
-  if (policy.allowedFunctions !== undefined && !Array.isArray(policy.allowedFunctions)) {
-    return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
+  if (policy.allowedFunctions !== undefined) {
+    if (!Array.isArray(policy.allowedFunctions)) {
+      return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
+    }
+    for (let i = 0; i < policy.allowedFunctions.length; i++) {
+      if (typeof policy.allowedFunctions[i] !== 'string') {
+        return invalidPolicy(`Policy 'allowedFunctions' must be an array of strings. Element at index ${i} is of type ${typeof policy.allowedFunctions[i]}`);
+      }
+    }
   }
 
-  if (policy.allowedStatements !== undefined && !Array.isArray(policy.allowedStatements)) {
-    return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
+  const allowedStatements = new Set<string>();
+  if (policy.allowedStatements !== undefined) {
+    if (!Array.isArray(policy.allowedStatements)) {
+      return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
+    }
+    for (let i = 0; i < policy.allowedStatements.length; i++) {
+      if (typeof policy.allowedStatements[i] !== 'string') {
+        return invalidPolicy(`Policy 'allowedStatements' must be an array of strings. Element at index ${i} is of type ${typeof policy.allowedStatements[i]}`);
+      }
+      allowedStatements.add(policy.allowedStatements[i]);
+    }
+  } else {
+    allowedStatements.add('select');
   }
 
   if (policy.allowMultiStatement !== undefined && typeof policy.allowMultiStatement !== 'boolean') {
@@ -102,7 +128,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     const canonicalFunction = canonicalizeFunctionEntry(fn);
     if (!canonicalFunction) {
       return invalidPolicy(
-        `Policy entry '${String(fn)}' is invalid. allowedFunctions entries must be 'function' or 'schema.function'`
+        `Policy entry for allowedFunctions is invalid. allowedFunctions entries must be 'function' or 'schema.function'`
       );
     }
 
@@ -119,6 +145,8 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       allowedTables,
       allowedFunctionsUnqualified,
       allowedFunctionsQualified,
+      allowedStatements,
+      allowMultiStatement: policy.allowMultiStatement ?? false,
       tableIdentifierMatching,
       defaultSchema: normalizedDefaultSchema,
       maxQueryLength,

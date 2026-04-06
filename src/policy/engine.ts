@@ -111,7 +111,7 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
     }
   }
 
-  const multiStatementCheck = checkMultiStatementPolicy(parsed.statements, policy);
+  const multiStatementCheck = checkMultiStatementPolicy(parsed.statements, compiledPolicy);
   if (!multiStatementCheck.allowed) {
     pushViolation(
       violations,
@@ -126,7 +126,7 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
   }
 
   for (const statement of parsed.statements) {
-    const statementCheck = isStatementAllowed(statement, policy);
+    const statementCheck = isStatementAllowed(statement, compiledPolicy);
     if (!statementCheck.allowed) {
       pushViolation(
         violations,
