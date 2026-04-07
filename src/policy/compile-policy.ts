@@ -62,6 +62,10 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
 
   const allowedTables = new Set<string>();
   for (const table of policy.allowedTables) {
+    if (typeof table !== 'string') {
+      return invalidPolicy("Policy 'allowedTables' entries must be strings");
+    }
+
     let tableToCanonicalize = table;
 
     // If entry is unqualified and defaultSchema is set, auto-qualify it
@@ -73,7 +77,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     const canonical = canonicalizeQualifiedName(tableToCanonicalize, tableIdentifierMatching);
     if (!canonical) {
       return invalidPolicy(
-        `Policy entry '${String(table)}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
+        `Policy entry '${table}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
       );
     }
     allowedTables.add(canonical);
@@ -82,12 +86,26 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
   const allowedFunctionsUnqualified = new Set<string>();
   const allowedFunctionsQualified = new Set<string>();
 
-  if (policy.allowedFunctions !== undefined && !Array.isArray(policy.allowedFunctions)) {
-    return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
+  if (policy.allowedFunctions !== undefined) {
+    if (!Array.isArray(policy.allowedFunctions)) {
+      return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
+    }
+    for (const fn of policy.allowedFunctions) {
+      if (typeof fn !== 'string') {
+        return invalidPolicy("Policy 'allowedFunctions' entries must be strings");
+      }
+    }
   }
 
-  if (policy.allowedStatements !== undefined && !Array.isArray(policy.allowedStatements)) {
-    return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
+  if (policy.allowedStatements !== undefined) {
+    if (!Array.isArray(policy.allowedStatements)) {
+      return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
+    }
+    for (const stmt of policy.allowedStatements) {
+      if (typeof stmt !== 'string') {
+        return invalidPolicy("Policy 'allowedStatements' entries must be strings");
+      }
+    }
   }
 
   if (policy.allowMultiStatement !== undefined && typeof policy.allowMultiStatement !== 'boolean') {
@@ -102,7 +120,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     const canonicalFunction = canonicalizeFunctionEntry(fn);
     if (!canonicalFunction) {
       return invalidPolicy(
-        `Policy entry '${String(fn)}' is invalid. allowedFunctions entries must be 'function' or 'schema.function'`
+        `Policy entry '${fn}' is invalid. allowedFunctions entries must be 'function' or 'schema.function'`
       );
     }
 

@@ -52,6 +52,35 @@ describe('Policy interface', () => {
     expect(resultString.errorCode).toBe(ErrorCode.INVALID_POLICY);
   });
 
+  test('validates allowedTables array items are strings', () => {
+    const result = validate('SELECT 1', {
+      allowedTables: ['public.users', null, 123, Object.create(null)] as any
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("entries must be strings");
+  });
+
+  test('validates allowedFunctions array items are strings', () => {
+    const result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowedFunctions: ['count', 123] as any
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("entries must be strings");
+  });
+
+  test('validates allowedStatements array items are strings', () => {
+    const result = validate('SELECT 1', {
+      allowedTables: ['public.users'],
+      allowedStatements: ['select', null] as any
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
+    expect(result.violations[0].message).toContain("entries must be strings");
+  });
+
   test('validates defaultSchema type at runtime', () => {
     const result = validate('SELECT 1', {
       allowedTables: ['public.users'],
