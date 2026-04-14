@@ -260,5 +260,9 @@ function extractStatementType(ast: unknown): string {
   }
 
   const typed = ast as Record<string, unknown>;
-  return String(typed.type || 'unknown').toLowerCase();
+  try {
+    return String(typed.type || 'unknown').toLowerCase();
+  } catch {
+    return 'unknown';
+  }
 }

@@ -70,7 +70,16 @@ export function normalizeTableReference(
     try {
       resolved = policy.resolver(ref.name);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      let msg = 'Unknown error';
+      if (err instanceof Error) {
+        msg = err.message;
+      } else {
+        try {
+          msg = String(err);
+        } catch {
+          msg = 'Error converting thrown value to string';
+        }
+      }
       return {
         success: false,
         error: `Resolver threw while resolving '${ref.name}': ${msg}`,
