@@ -97,7 +97,7 @@ function extractCteName(value: unknown): string | null {
 
   const typed = value as Record<string, unknown>;
   if (typeof typed.value === 'string' && typed.value.length > 0) {
-    return typed.value;
+    return typed.type === 'double_quote_string' ? `"${typed.value}"` : typed.value;
   }
   return null;
 }
@@ -153,10 +153,14 @@ function isRelationStatementType(type: unknown): boolean {
 }
 
 function canonicalName(name: string): string {
-  if (name.startsWith('"') && name.endsWith('"') && name.length >= 2) {
-    return name.slice(1, -1).replace(/""/g, '"');
-  }
-  return name.toLowerCase();
+  // SECURITY CONCERN: Prevent CTE shadowing bypass vulnerabilities.
+  // PostgreSQL treats unquoted identifiers as case-insensitive, but quotes as case-sensitive.
+  // node-sql-parser preserves case for both. If we unconditionally lowercase identifiers here,
+  // an attacker could use a quoted CTE (e.g. WITH "Users") to shadow an unquoted table (Users),
+  // bypassing validation because our code would treat them as identical.
+  // By returning the raw case-sensitive string, we ensure that distinct identifiers
+  // do not accidentally shadow each other, failing closed for mismatched case.
+  return name;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

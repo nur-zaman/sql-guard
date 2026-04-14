@@ -7,9 +7,14 @@ export function extractAllFunctions(ast: unknown): FunctionCall[] {
   function addFunction(name: unknown, schema: unknown): void {
     if (typeof name !== 'string' || name.length === 0) return;
 
+    // SECURITY CONCERN: Prevent function bypass vulnerabilities.
+    // We preserve exact case and quote structure because PostgreSQL treats quoted
+    // function calls as case-sensitive. Lowercasing them would allow an attacker
+    // to bypass policy by using a maliciously crafted, case-varied function
+    // (e.g. calling "pg_read_file"() vs pg_read_file()).
     functions.push({
-      name: name.toLowerCase(),
-      schema: typeof schema === 'string' && schema.length > 0 ? schema.toLowerCase() : undefined,
+      name,
+      schema: typeof schema === 'string' && schema.length > 0 ? schema : undefined,
     });
   }
 
@@ -54,17 +59,24 @@ function extractFunctionIdentity(
 
   const fnName = asRecord(node.name);
   const schemaNode = asRecord(fnName.schema);
-  const schema = typeof schemaNode.value === 'string' ? schemaNode.value : undefined;
+  let schema: string | undefined;
+
+  if (typeof schemaNode.value === 'string' && schemaNode.value.length > 0) {
+    schema = schemaNode.type === 'double_quote_string' ? `"${schemaNode.value}"` : schemaNode.value;
+  } else if (typeof fnName.schema === 'string' && fnName.schema.length > 0) {
+    schema = fnName.schema;
+  }
 
   if (typeof fnName.name === 'string' && fnName.name.length > 0) {
-    return { name: fnName.name.toLowerCase(), schema: schema?.toLowerCase() };
+    return { name: fnName.name, schema };
   }
 
   if (Array.isArray(fnName.name)) {
     for (const part of fnName.name) {
       const partRecord = asRecord(part);
       if (typeof partRecord.value === 'string' && partRecord.value.length > 0) {
-        return { name: partRecord.value.toLowerCase(), schema: schema?.toLowerCase() };
+        const name = partRecord.type === 'double_quote_string' ? `"${partRecord.value}"` : partRecord.value;
+        return { name, schema };
       }
     }
   }

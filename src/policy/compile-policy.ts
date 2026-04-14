@@ -16,7 +16,7 @@ type CompilePolicyResult =
   | { success: false; errorCode: ErrorCode.INVALID_POLICY; violation: Violation };
 
 export function compilePolicy(policy: Policy): CompilePolicyResult {
-  if (!policy || typeof policy !== 'object') {
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) {
     return invalidPolicy("Policy must be an object");
   }
 
@@ -35,7 +35,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     return invalidPolicy("Policy 'defaultSchema' must be a string when provided");
   }
 
-  const defaultSchema = policy.defaultSchema?.trim();
+  const defaultSchema = typeof policy.defaultSchema === 'string' ? policy.defaultSchema.trim() : undefined;
   if (defaultSchema !== undefined) {
     if (defaultSchema.length === 0) {
       return invalidPolicy("Policy 'defaultSchema' must be a non-empty string when provided");
