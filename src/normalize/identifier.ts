@@ -8,6 +8,7 @@
  */
 
 import { canonicalizeIdentifier, parseQualifiedName } from './qualified-name';
+import { safeErrorMessage } from '../utils/safe-string';
 import type { Policy, TableIdentifierMatching } from '../types/public';
 import type { TableReference } from '../parser/types';
 
@@ -70,7 +71,7 @@ export function normalizeTableReference(
     try {
       resolved = policy.resolver(ref.name);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = safeErrorMessage(err);
       return {
         success: false,
         error: `Resolver threw while resolving '${ref.name}': ${msg}`,

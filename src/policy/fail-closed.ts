@@ -1,4 +1,5 @@
 import { ErrorCode } from '../types/public';
+import { safeString } from '../utils/safe-string';
 
 export interface UnsupportedCheckResult {
   supported: boolean;
@@ -260,5 +261,5 @@ function extractStatementType(ast: unknown): string {
   }
 
   const typed = ast as Record<string, unknown>;
-  return String(typed.type || 'unknown').toLowerCase();
+  return safeString(typed.type, 'unknown').toLowerCase();
 }
