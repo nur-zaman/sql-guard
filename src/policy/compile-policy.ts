@@ -1,4 +1,5 @@
 import { ErrorCode } from '../types/public';
+import { safeString } from '../utils/safe-string';
 import { canonicalizeIdentifier, parseQualifiedName, isUnqualifiedName } from '../normalize/qualified-name';
 import type { Policy, TableIdentifierMatching, Violation } from '../types/public';
 
@@ -77,7 +78,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     const canonical = canonicalizeQualifiedName(tableToCanonicalize, tableIdentifierMatching);
     if (!canonical) {
       return invalidPolicy(
-        `Policy entry '${table}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
+        `Policy entry '${safeString(table)}' is invalid. allowedTables entries must be schema-qualified as 'schema.table'`
       );
     }
     allowedTables.add(canonical);
@@ -120,7 +121,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     const canonicalFunction = canonicalizeFunctionEntry(fn);
     if (!canonicalFunction) {
       return invalidPolicy(
-        `Policy entry '${fn}' is invalid. allowedFunctions entries must be 'function' or 'schema.function'`
+        `Policy entry '${safeString(fn)}' is invalid. allowedFunctions entries must be 'function' or 'schema.function'`
       );
     }
 
