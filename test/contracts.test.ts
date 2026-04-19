@@ -64,7 +64,7 @@ describe('Policy interface', () => {
   test('validates allowedFunctions array items are strings', () => {
     const result = validate('SELECT 1', {
       allowedTables: ['public.users'],
-      allowedFunctions: ['count', 123] as any
+      allowedFunctions: ['count', 123, Object.create(null)] as any
     });
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
@@ -74,7 +74,7 @@ describe('Policy interface', () => {
   test('validates allowedStatements array items are strings', () => {
     const result = validate('SELECT 1', {
       allowedTables: ['public.users'],
-      allowedStatements: ['select', null] as any
+      allowedStatements: ['select', null, Object.create(null)] as any
     });
     expect(result.ok).toBe(false);
     expect(result.errorCode).toBe(ErrorCode.INVALID_POLICY);
