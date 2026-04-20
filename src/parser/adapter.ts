@@ -11,6 +11,7 @@ import { Parser } from 'node-sql-parser';
 import { ParseResult, ParsedStatement } from './types';
 import { extractAllFunctions } from '../analysis/functions';
 import { extractAllTables } from '../analysis/relations';
+import { safeString, safeErrorMessage } from '../utils/safe-string';
 
 const parser = new Parser();
 
@@ -47,7 +48,7 @@ export function parseSql(sql: string, dialect: 'postgresql' = 'postgresql'): Par
       success: false,
       statements: [],
       error: {
-        message: error instanceof Error ? error.message : 'Parse error',
+        message: safeErrorMessage(error, 'Parse error'),
         location: extractParserErrorLocation(error),
       },
     };
@@ -66,7 +67,7 @@ function astToParsedStatement(ast: unknown): ParsedStatement {
 }
 
 function extractStatementType(ast: Record<string, unknown>): ParsedStatement['type'] {
-  const type = String(ast.type || '').toLowerCase();
+  const type = safeString(ast.type).toLowerCase();
   if (['select', 'insert', 'update', 'delete'].includes(type)) {
     return type as ParsedStatement['type'];
   }

@@ -16,6 +16,7 @@ import { ErrorCode } from '../types/public';
 import { compilePolicy } from './compile-policy';
 import type { CompiledPolicy } from './compile-policy';
 import type { Policy, ValidationResult, Violation } from '../types/public';
+import { safeErrorMessage } from '../utils/safe-string';
 
 /**
  * Internal result type used during validation.
@@ -80,7 +81,7 @@ export function validateAgainstPolicy(sql: string, policy: Policy): ValidationRe
   if (!parsed.success) {
     const parseViolation: Violation = {
       type: 'parse',
-      message: parsed.error?.message ?? 'Parse error',
+      message: parsed.error?.message ? safeErrorMessage(parsed.error.message, 'Parse error') : 'Parse error',
       location: parsed.error?.location,
     };
 
