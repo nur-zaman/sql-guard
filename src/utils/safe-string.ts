@@ -20,7 +20,10 @@ export function safeString(value: unknown): string {
 export function safeErrorMessage(err: unknown): string {
   if (err instanceof Error) {
     try {
-      return err.message || 'Unknown error';
+      if (err.message) {
+        return safeString(err.message);
+      }
+      return 'Unknown error';
     } catch {
       return '[Unserializable Error Message]';
     }
