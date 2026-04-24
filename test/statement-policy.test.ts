@@ -76,4 +76,27 @@ describe('checkMultiStatementPolicy', () => {
     const result = checkMultiStatementPolicy(stmts, policy);
     expect(result.allowed).toBe(true);
   });
+
+  test('handles arrays containing non-string objects without crashing', () => {
+    const policy: Policy = {
+      allowedTables: ['public.users'],
+      allowedStatements: [
+        Object.create(null) as any,
+        'select',
+      ],
+    };
+
+    const statement: ParsedStatement = {
+      type: 'insert',
+      tables: [],
+      functions: [],
+      raw: {},
+    };
+
+    // The non-string object should be ignored in the error message generation without throwing
+    const result = isStatementAllowed(statement, policy);
+    expect(result.allowed).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.STATEMENT_NOT_ALLOWED);
+    expect(result.errorMessage).toBe("Statement type 'insert' not allowed. Allowed: select");
+  });
 });

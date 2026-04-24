@@ -51,10 +51,11 @@ export function isStatementAllowed(
   const allowedStatements = policy.allowedStatements ?? ['select'];
 
   if (!allowedStatements.includes(type)) {
+    const validStatements = allowedStatements.filter((s) => typeof s === 'string');
     return {
       allowed: false,
       errorCode: ErrorCode.STATEMENT_NOT_ALLOWED,
-      errorMessage: `Statement type '${type}' not allowed. Allowed: ${allowedStatements.join(', ')}`,
+      errorMessage: `Statement type '${type}' not allowed. Allowed: ${validStatements.join(', ')}`,
     };
   }
 
