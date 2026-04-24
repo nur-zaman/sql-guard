@@ -128,4 +128,26 @@ describe('function extraction and policy', () => {
     expect(result.errorCode).toBe(ErrorCode.FUNCTION_NOT_ALLOWED);
     expect(result.violations).toEqual([{ schema: 'pg_catalog', name: 'current_database' }]);
   });
+
+  test('handles arrays containing non-string objects without crashing', () => {
+    const parsed = parseSql('SELECT lower(name) FROM public.users');
+    expect(parsed.success).toBe(true);
+
+    const policy: Policy = {
+      allowedTables: ['public.users'],
+      allowedFunctions: [
+        {
+          toString: () => {
+            throw new Error('Poison!');
+          },
+        } as any,
+        'lower',
+      ],
+    };
+
+    // The non-string object should be ignored without throwing
+    const result = checkFunctionsAllowed(parsed.statements[0].functions, policy);
+    expect(result.allowed).toBe(true);
+    expect(result.violations).toHaveLength(0);
+  });
 });

@@ -110,6 +110,7 @@ function compileFunctionAllowlists(allowedFunctions: string[]): {
   const qualified = new Set<string>();
 
   for (const rawEntry of allowedFunctions) {
+    if (typeof rawEntry !== 'string') continue;
     const entry = normalize(rawEntry);
     if (!entry) continue;
 
