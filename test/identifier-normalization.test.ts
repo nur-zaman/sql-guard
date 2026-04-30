@@ -53,6 +53,20 @@ describe('normalizeTableReference', () => {
     expect(result.table?.fullyQualified).toBe('public.users');
   });
 
+  test('handles malicious thrown errors in resolver safely', () => {
+    const ref = { name: 'users' };
+    const policy: Policy = {
+      allowedTables: [],
+      resolver: () => {
+        throw Object.create(null);
+      }
+    };
+
+    const result = normalizeTableReference(ref, policy);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Resolver threw while resolving 'users': Unknown error");
+  });
+
   test('preserves case for quoted identifiers', () => {
     const ref = { schema: 'PUBLIC', name: '"UserTable"' };
     const policy: Policy = {
