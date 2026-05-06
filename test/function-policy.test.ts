@@ -129,3 +129,17 @@ describe('function extraction and policy', () => {
     expect(result.violations).toEqual([{ schema: 'pg_catalog', name: 'current_database' }]);
   });
 });
+
+  test('blocks case-sensitive bypass using quoted functions', () => {
+    const policy = {
+      allowedTables: ['public.users'],
+      allowedFunctions: ['lower'],
+    };
+
+    const parsed = parseSql('SELECT "LOWER"() FROM public.users');
+    const result = checkFunctionsAllowed(parsed.statements[0].functions, policy);
+
+    expect(result.allowed).toBe(false);
+    expect(result.errorCode).toBe(ErrorCode.FUNCTION_NOT_ALLOWED);
+    expect(result.violations).toEqual([{ schema: undefined, name: '"LOWER"' }]);
+  });

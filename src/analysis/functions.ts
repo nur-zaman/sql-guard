@@ -8,8 +8,8 @@ export function extractAllFunctions(ast: unknown): FunctionCall[] {
     if (typeof name !== 'string' || name.length === 0) return;
 
     functions.push({
-      name: name.toLowerCase(),
-      schema: typeof schema === 'string' && schema.length > 0 ? schema.toLowerCase() : undefined,
+      name,
+      schema: typeof schema === 'string' && schema.length > 0 ? schema : undefined,
     });
   }
 
@@ -54,17 +54,33 @@ function extractFunctionIdentity(
 
   const fnName = asRecord(node.name);
   const schemaNode = asRecord(fnName.schema);
-  const schema = typeof schemaNode.value === 'string' ? schemaNode.value : undefined;
+
+  // Handle schema if it exists. Sometimes node-sql-parser puts schema as a string value, sometimes as an array
+  let schema: string | undefined;
+  if (typeof schemaNode.value === 'string' && schemaNode.value.length > 0) {
+    schema = schemaNode.type === 'double_quote_string' ? `"${schemaNode.value}"` : schemaNode.value.toLowerCase();
+  } else if (Array.isArray(schemaNode.name)) {
+    for (const part of schemaNode.name) {
+      const partRecord = asRecord(part);
+      if (typeof partRecord.value === 'string' && partRecord.value.length > 0) {
+        schema = partRecord.type === 'double_quote_string' ? `"${partRecord.value}"` : partRecord.value.toLowerCase();
+        break;
+      }
+    }
+  } else if (typeof schemaNode.name === 'string' && schemaNode.name.length > 0) {
+    schema = schemaNode.name.toLowerCase();
+  }
 
   if (typeof fnName.name === 'string' && fnName.name.length > 0) {
-    return { name: fnName.name.toLowerCase(), schema: schema?.toLowerCase() };
+    return { name: fnName.name.toLowerCase(), schema };
   }
 
   if (Array.isArray(fnName.name)) {
     for (const part of fnName.name) {
       const partRecord = asRecord(part);
       if (typeof partRecord.value === 'string' && partRecord.value.length > 0) {
-        return { name: partRecord.value.toLowerCase(), schema: schema?.toLowerCase() };
+        const nameVal = partRecord.type === 'double_quote_string' ? `"${partRecord.value}"` : partRecord.value.toLowerCase();
+        return { name: nameVal, schema };
       }
     }
   }
