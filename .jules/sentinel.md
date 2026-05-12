@@ -32,3 +32,8 @@
 **Vulnerability:** While `compilePolicy` checked if `policy.allowedTables`, `policy.allowedFunctions`, and `policy.allowedStatements` were arrays, it failed to validate the runtime type of the individual elements within those arrays. If a pure-JS consumer provided an object without a valid `toString` method (like `Object.create(null)`) or a non-string type, the policy compiler's use of template literals (`` `${String(table)}` ``) or `.trim()` would throw an unhandled `TypeError` (e.g. "Cannot convert object to primitive value"), bypassing the validation catch blocks and resulting in an application crash / DoS.
 **Learning:** Runtime type verification must be deep. Checking `Array.isArray()` is insufficient if the code subsequently assumes every element of the array conforms to the TypeScript type `string[]`.
 **Prevention:** Always iterate and assert the expected type of every element in an array parameter at the public API boundary before using it in string formatting or logic.
+
+## 2024-05-12 - [CRITICAL] Prevent malicious toString crashes
+**Vulnerability:** Converting unknown API or AST input to string using `String(input)` can cause an unhandled exception or Denial of Service if the input has a malicious or missing `toString` method (like `Object.create(null)`).
+**Learning:** Defensive runtime type checking boundaries must never blindly call native constructors like `String()` on unknown payload structures without using `try/catch` and fallback mechanisms.
+**Prevention:** Always use the new `safeString()` helper to safely coerce unknown inputs to strings without risking prototype pollution or application crashes.
