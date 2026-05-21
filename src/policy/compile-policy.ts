@@ -1,5 +1,6 @@
 import { ErrorCode } from '../types/public';
 import { canonicalizeIdentifier, parseQualifiedName, isUnqualifiedName } from '../normalize/qualified-name';
+
 import type { Policy, TableIdentifierMatching, Violation } from '../types/public';
 
 export interface CompiledPolicy {
