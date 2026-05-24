@@ -32,3 +32,8 @@
 **Vulnerability:** While `compilePolicy` checked if `policy.allowedTables`, `policy.allowedFunctions`, and `policy.allowedStatements` were arrays, it failed to validate the runtime type of the individual elements within those arrays. If a pure-JS consumer provided an object without a valid `toString` method (like `Object.create(null)`) or a non-string type, the policy compiler's use of template literals (`` `${String(table)}` ``) or `.trim()` would throw an unhandled `TypeError` (e.g. "Cannot convert object to primitive value"), bypassing the validation catch blocks and resulting in an application crash / DoS.
 **Learning:** Runtime type verification must be deep. Checking `Array.isArray()` is insufficient if the code subsequently assumes every element of the array conforms to the TypeScript type `string[]`.
 **Prevention:** Always iterate and assert the expected type of every element in an array parameter at the public API boundary before using it in string formatting or logic.
+
+## 2024-05-18 - [Defensive String Coercion]
+**Vulnerability:** Unsafe string coercion of AST elements and unknown error types using `String()` native constructor.
+**Learning:** Native `String()` casting can trigger malicious `toString()` methods or throw unhandled exceptions when encountering objects created with a `null` prototype (e.g., `Object.create(null)`), leading to potential Denial of Service (DoS) in public-facing parsing engines.
+**Prevention:** Implement and use a safe string coercion utility (`safeString`) that performs explicit type checking and falls back to `Object.prototype.toString.call()` for complex types to bypass overridden `toString` methods and ensure safe stringification.
