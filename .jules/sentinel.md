@@ -32,3 +32,11 @@
 **Vulnerability:** While `compilePolicy` checked if `policy.allowedTables`, `policy.allowedFunctions`, and `policy.allowedStatements` were arrays, it failed to validate the runtime type of the individual elements within those arrays. If a pure-JS consumer provided an object without a valid `toString` method (like `Object.create(null)`) or a non-string type, the policy compiler's use of template literals (`` `${String(table)}` ``) or `.trim()` would throw an unhandled `TypeError` (e.g. "Cannot convert object to primitive value"), bypassing the validation catch blocks and resulting in an application crash / DoS.
 **Learning:** Runtime type verification must be deep. Checking `Array.isArray()` is insufficient if the code subsequently assumes every element of the array conforms to the TypeScript type `string[]`.
 **Prevention:** Always iterate and assert the expected type of every element in an array parameter at the public API boundary before using it in string formatting or logic.
+
+**Vulnerability:** Use of the native  constructor across the library was vulnerable to object prototype poisoning DoS (e.g., throwing when  is called because of lack of  method).
+**Learning:** In TypeScript/JavaScript, unknown types at boundaries shouldn't be blindly cast with . Objects missing prototype chains () will throw exceptions natively.
+**Prevention:** Created a central  utility to catch exceptions when coercing unknown objects to strings, mitigating unexpected crashes.
+## 2025-02-18 - [Safe String Implementation for DoS Prevention]
+**Vulnerability:** Use of the native `String()` constructor across the library was vulnerable to object prototype poisoning DoS (e.g., throwing when `String(Object.create(null))` is called because of lack of `.toString` method).
+**Learning:** In TypeScript/JavaScript, unknown types at boundaries shouldn't be blindly cast with `String()`. Objects missing prototype chains (`Object.create(null)`) will throw exceptions natively.
+**Prevention:** Created a central `safeString` utility to catch exceptions when coercing unknown objects to strings, mitigating unexpected crashes.
