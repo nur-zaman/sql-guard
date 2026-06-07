@@ -1,3 +1,6 @@
+
+import { safeString } from "../utils/safe-string";
+
 /**
  * SQL Parser Adapter
  *
@@ -66,7 +69,7 @@ function astToParsedStatement(ast: unknown): ParsedStatement {
 }
 
 function extractStatementType(ast: Record<string, unknown>): ParsedStatement['type'] {
-  const type = String(ast.type || '').toLowerCase();
+  const type = safeString(ast.type || '').toLowerCase();
   if (['select', 'insert', 'update', 'delete'].includes(type)) {
     return type as ParsedStatement['type'];
   }

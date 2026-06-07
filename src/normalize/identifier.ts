@@ -1,3 +1,6 @@
+
+import { safeString } from "../utils/safe-string";
+
 /**
  * Identifier Normalization
  *
@@ -70,7 +73,7 @@ export function normalizeTableReference(
     try {
       resolved = policy.resolver(ref.name);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error ? err.message : safeString(err);
       return {
         success: false,
         error: `Resolver threw while resolving '${ref.name}': ${msg}`,
