@@ -8,8 +8,8 @@ export function extractAllFunctions(ast: unknown): FunctionCall[] {
     if (typeof name !== 'string' || name.length === 0) return;
 
     functions.push({
-      name: name.toLowerCase(),
-      schema: typeof schema === 'string' && schema.length > 0 ? schema.toLowerCase() : undefined,
+      name: name,
+      schema: typeof schema === 'string' && schema.length > 0 ? schema : undefined,
     });
   }
 
@@ -54,22 +54,34 @@ function extractFunctionIdentity(
 
   const fnName = asRecord(node.name);
   const schemaNode = asRecord(fnName.schema);
-  const schema = typeof schemaNode.value === 'string' ? schemaNode.value : undefined;
+  const schema = formatFunctionPart(schemaNode);
 
+  let name: string | undefined;
   if (typeof fnName.name === 'string' && fnName.name.length > 0) {
-    return { name: fnName.name.toLowerCase(), schema: schema?.toLowerCase() };
-  }
-
-  if (Array.isArray(fnName.name)) {
+    name = fnName.name.toLowerCase();
+  } else if (Array.isArray(fnName.name)) {
     for (const part of fnName.name) {
-      const partRecord = asRecord(part);
-      if (typeof partRecord.value === 'string' && partRecord.value.length > 0) {
-        return { name: partRecord.value.toLowerCase(), schema: schema?.toLowerCase() };
+      const partFormatted = formatFunctionPart(asRecord(part));
+      if (partFormatted) {
+        name = partFormatted;
+        break;
       }
     }
   }
 
+  if (name) {
+    return { name, schema };
+  }
+
   return null;
+}
+
+function formatFunctionPart(part: Record<string, unknown>): string | undefined {
+  if (typeof part.value !== 'string' || part.value.length === 0) return undefined;
+  if (part.type === 'double_quote_string') {
+    return `"${part.value}"`;
+  }
+  return part.value.toLowerCase();
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
