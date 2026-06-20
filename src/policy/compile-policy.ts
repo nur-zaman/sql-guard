@@ -62,7 +62,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
 
   const allowedTables = new Set<string>();
   for (const table of policy.allowedTables) {
-    if (typeof table !== 'string') {
+    if (typeof table !== 'string' || !table.trim()) {
       return invalidPolicy("Policy 'allowedTables' entries must be strings");
     }
 
@@ -91,7 +91,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       return invalidPolicy("Policy 'allowedFunctions' must be an array when provided");
     }
     for (const fn of policy.allowedFunctions) {
-      if (typeof fn !== 'string') {
+      if (typeof fn !== 'string' || !fn.trim()) {
         return invalidPolicy("Policy 'allowedFunctions' entries must be strings");
       }
     }
@@ -102,7 +102,7 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       return invalidPolicy("Policy 'allowedStatements' must be an array when provided");
     }
     for (const stmt of policy.allowedStatements) {
-      if (typeof stmt !== 'string') {
+      if (typeof stmt !== 'string' || !stmt.trim()) {
         return invalidPolicy("Policy 'allowedStatements' entries must be strings");
       }
     }
