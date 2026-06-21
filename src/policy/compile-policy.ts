@@ -65,6 +65,9 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     if (typeof table !== 'string') {
       return invalidPolicy("Policy 'allowedTables' entries must be strings");
     }
+    if (!table.trim()) {
+      return invalidPolicy("Policy 'allowedTables' entries must be non-empty strings");
+    }
 
     let tableToCanonicalize = table;
 
@@ -94,6 +97,9 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
       if (typeof fn !== 'string') {
         return invalidPolicy("Policy 'allowedFunctions' entries must be strings");
       }
+      if (!fn.trim()) {
+        return invalidPolicy("Policy 'allowedFunctions' entries must be non-empty strings");
+      }
     }
   }
 
@@ -104,6 +110,9 @@ export function compilePolicy(policy: Policy): CompilePolicyResult {
     for (const stmt of policy.allowedStatements) {
       if (typeof stmt !== 'string') {
         return invalidPolicy("Policy 'allowedStatements' entries must be strings");
+      }
+      if (!stmt.trim()) {
+        return invalidPolicy("Policy 'allowedStatements' entries must be non-empty strings");
       }
     }
   }
