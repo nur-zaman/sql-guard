@@ -21,6 +21,7 @@
   },
   "files": [
     "dist/**/*",
+    "assets/sql-guard-logo.png",
     "README.md",
     "LICENSE"
   ],

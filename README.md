@@ -1,185 +1,217 @@
-# sql-guard
+<p align="center">
+  <img src="./assets/sql-guard-logo.png" width="160" alt="sql-guard logo: a database protected by a shield" />
+</p>
 
-Validate AI generated PostgreSQL queries against explicit allowlists. This package parses SQL into an AST and denies anything outside your policy.
+<h1 align="center">sql-guard</h1>
 
-## Installation
+<p align="center">
+  <strong>Fail-closed PostgreSQL validation for AI-generated SQL.</strong>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/sql-guard"><img src="https://img.shields.io/npm/v/sql-guard?color=22c55e&label=npm" alt="npm version" /></a>
+  <a href="https://github.com/nur-zaman/sql-guard/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f172a" alt="MIT license" /></a>
+  <a href="https://github.com/nur-zaman/sql-guard"><img src="https://img.shields.io/badge/PostgreSQL-AST--validated-38bdf8" alt="PostgreSQL AST validated" /></a>
+</p>
+
+`sql-guard` parses PostgreSQL SQL into an AST, then checks it against an explicit policy. It is built for the point where an LLM has proposed a query, but **before** your application executes it.
+
+It does not rewrite or sanitize SQL. If it cannot confidently validate a query, it denies it.
+
+## Why sql-guard?
+
+Giving an AI assistant access to a database often means accepting SQL that was composed at runtime. A prompt restriction or regex is not a security boundary. `sql-guard` adds a focused, code-level guardrail:
+
+- Allow only the tables your feature needs.
+- Default to read-only queries.
+- Allow only the functions you explicitly trust.
+- Reject stacked statements, unsupported syntax, and ambiguous cases.
+- Return structured violations you can log, inspect, or surface safely.
+
+> [!IMPORTANT]
+> `sql-guard` is defense in depth—not a replacement for parameterized queries, least-privilege database roles, row-level security, or application authorization.
+
+## Install
 
 ```bash
 npm install sql-guard
 ```
 
-## Quickstart
+Requires Node.js 18 or later.
 
-```typescript
-import { validate, assertSafeSql, ErrorCode } from 'sql-guard';
+## Quick start
+
+```ts
+import { validate } from 'sql-guard';
 
 const policy = {
   allowedTables: ['public.users', 'public.orders'],
   allowedFunctions: ['count', 'lower'],
 };
 
-const result = validate('SELECT * FROM public.users', policy);
-if (!result.ok) {
-  console.log('Denied:', result.errorCode);
-  console.log('Violations:', result.violations);
-}
+const result = validate(
+  'SELECT lower(u.email) FROM public.users AS u',
+  policy,
+);
 
-// Or fail fast with an exception
-assertSafeSql('SELECT lower(u.email) FROM public.users u', policy);
+if (!result.ok) {
+  console.error(result.errorCode, result.violations);
+  // Do not execute the query.
+}
 ```
 
-## API Reference
+Use `assertSafeSql()` when rejecting unsafe SQL should interrupt the request immediately:
 
-### validate(sql, policy)
-
-Validates SQL against a policy.
-
-- Returns: `ValidationResult`
-- On failure: `ok === false`, `violations` populated, and `errorCode` set
-
-### assertSafeSql(sql, policy)
-
-Validates SQL and throws when validation fails.
-
-- Returns: `void`
-- Throws: `SqlValidationError` with `code: ErrorCode` and `violations: Violation[]`
-
-```typescript
-import { assertSafeSql, SqlValidationError, ErrorCode } from 'sql-guard';
+```ts
+import { assertSafeSql, SqlValidationError } from 'sql-guard';
 
 try {
-  assertSafeSql('SELECT pg_catalog.current_database() FROM public.users', {
+  assertSafeSql('SELECT * FROM public.users', {
     allowedTables: ['public.users'],
-    allowedFunctions: ['lower'],
   });
-} catch (err) {
-  if (err instanceof SqlValidationError) {
-    if (err.code === ErrorCode.FUNCTION_NOT_ALLOWED) {
-      console.error('Blocked a function call:', err.violations);
-    }
+
+  // Execute only after validation succeeds.
+} catch (error) {
+  if (error instanceof SqlValidationError) {
+    console.error(error.code, error.violations);
   }
-  throw err;
+  throw error;
 }
 ```
 
-### ErrorCode
+## What it blocks
 
-Enum of error codes returned by `validate()` and used by `SqlValidationError`.
+With the default policy, `sql-guard` accepts only a single `SELECT` and denies every function call unless it is allowlisted.
 
-### Policy
+| Query or pattern | Default outcome | Why |
+| --- | --- | --- |
+| `SELECT * FROM public.users` | Allowed | The table is explicitly allowlisted. |
+| `SELECT * FROM users` | Denied | Unqualified relation names need a resolver or `defaultSchema`. |
+| `SELECT * FROM public.secret_users` | Denied | Every referenced table must be allowlisted. |
+| `SELECT pg_catalog.pg_read_file(...)` | Denied | Functions are denied until individually allowlisted. |
+| `SELECT 1; DELETE FROM public.users` | Denied | Multiple statements are disabled by default. |
+| `WITH x AS (INSERT ...) SELECT * FROM x` | Denied | Data-modifying CTEs are unsupported and fail closed. |
+| `SELECT * FROM information_schema.tables` | Denied | Metadata schemas require an explicit, fully qualified allowlist entry. |
 
-Policy settings that drive validation.
+The validator follows relations inside joins, subqueries, unions, and CTEs; an allowed alias or CTE name does not conceal an unauthorized base table.
 
-```ts
-export interface Policy {
-  allowedTables: string[];
-  allowedStatements?: ('select' | 'insert' | 'update' | 'delete')[];
-  allowMultiStatement?: boolean;
-  allowedFunctions?: string[];
-  tableIdentifierMatching?: 'strict' | 'caseInsensitive';
-  resolver?: (unqualified: string) => string | null;
-  defaultSchema?: string;
-}
-```
-
-Defaults and behavior:
-
-- `allowedTables` is required.
-- `allowedTables` entries must be schema-qualified (`schema.table`). Invalid entries return `INVALID_POLICY`.
-- `allowedStatements` defaults to `['select']`.
-- `allowMultiStatement` defaults to `false`.
-- `allowedFunctions` defaults to `[]`, which means any function call is denied unless allowlisted.
-- `tableIdentifierMatching` defaults to `'strict'` (exact case-sensitive table matching).
-- Set `tableIdentifierMatching: 'caseInsensitive'` to preserve case-insensitive table matching.
-- Unqualified table references in SQL are denied unless you provide `defaultSchema` or `resolver` to map them to `schema.table`.
-- `defaultSchema`: when provided, unqualified `allowedTables` entries are auto-qualified with this schema, and unqualified SQL references resolve to it.
-- `resolver`: optional function to map unqualified names to qualified names. Takes precedence over `defaultSchema`.
-- Metadata schemas (`information_schema`, `pg_catalog`) are treated specially and must be explicitly allowlisted even when using `defaultSchema`. Setting `defaultSchema` to a metadata schema name does not grant automatic access.
-- Unqualified function allowlist entries (for example, `lower`) match only unqualified calls (`lower(...)`).
-- Schema-qualified function calls require schema-qualified allowlist entries (`pg_catalog.current_database`).
-
-Policy examples:
+## Policy
 
 ```ts
-// Explicit schema-qualified tables
-const strictPolicy = {
+import type { Policy } from 'sql-guard';
+
+const policy: Policy = {
+  // Required. Schema-qualified by default.
   allowedTables: ['public.users', 'analytics.events'],
-  allowedFunctions: ['lower', 'pg_catalog.current_database'],
-  resolver: (unqualified: string) =>
-    unqualified === 'users' ? 'public.users' : null,
-};
 
-// Using defaultSchema for simpler configuration
-const defaultSchemaPolicy = {
-  defaultSchema: 'public',
-  allowedTables: ['users', 'orders', 'products'],
-  // Treated as ['public.users', 'public.orders', 'public.products']
-};
+  // Optional. Defaults to ['select'].
+  allowedStatements: ['select'],
 
-// Mixed: defaultSchema + explicit qualified tables
-const mixedPolicy = {
-  defaultSchema: 'public',
-  allowedTables: ['users', 'analytics.events'],
-  // Treated as ['public.users', 'analytics.events']
-};
+  // Optional. Defaults to false.
+  allowMultiStatement: false,
 
-// Resolver takes precedence over defaultSchema
-const resolverPolicy = {
+  // Optional. Defaults to []. Unlisted calls are denied.
+  allowedFunctions: ['count', 'lower'],
+
+  // Optional. Defaults to 'strict' (case-sensitive).
+  tableIdentifierMatching: 'strict',
+
+  // Optional. Resolves unqualified relation references.
+  resolver: (name) => (name === 'users' ? 'public.users' : null),
+
+  // Optional. A simpler alternative for one application schema.
   defaultSchema: 'public',
-  allowedTables: ['public.users', 'archive.users'],
-  resolver: (name: string) =>
-    name === 'old_users' ? 'archive.users' : null,
-  // 'users' resolves to 'public.users' via defaultSchema
-  // 'old_users' resolves to 'archive.users' via resolver
+
+  // Optional. Defaults to 100,000 characters.
+  maxQueryLength: 100_000,
 };
 ```
 
-## Security Model
+### Resolving unqualified tables
 
-- AST based validation, not regex matching.
-- Fail closed: unsupported or uncertain parser features are denied.
-- Data-modifying CTE payloads (for example `WITH x AS (INSERT ...) SELECT ...`) are denied as unsupported.
-- `SELECT INTO` is denied as unsupported.
-- Table allowlists: every referenced table must be in `policy.allowedTables` by fully qualified name.
-- Statement type restrictions: only `select` is allowed unless you opt in via `allowedStatements`.
-- Multi statement restriction: `SELECT 1; SELECT 2` is denied unless `allowMultiStatement: true`.
-- Function allowlists: schema-qualified calls are allowed only by exact schema-qualified entries.
-- Metadata table protection: relations in `information_schema` and `pg_catalog` are denied unless explicitly allowlisted by fully qualified name.
+By default, both policy entries and SQL table references are expected to be schema-qualified. You can choose one of these explicit resolution strategies:
 
-This is a guardrail for LLM output. It helps enforce least privilege at the query shape level. Use it alongside parameterization, prepared statements, and database permissions.
+```ts
+// Resolve unqualified SQL tables to a single schema.
+const publicPolicy = {
+  defaultSchema: 'public',
+  allowedTables: ['users', 'orders'],
+};
 
-## Limitations
+// Or define exactly which aliases can resolve to which schema-qualified table.
+const resolverPolicy = {
+  allowedTables: ['public.users', 'archive.users'],
+  resolver: (name: string) => {
+    if (name === 'users') return 'public.users';
+    if (name === 'old_users') return 'archive.users';
+    return null;
+  },
+};
+```
 
-- PostgreSQL focused (v1). Other dialects are not supported.
-- No SQL rewriting or sanitization. This package validates, it doesn't transform queries.
-- Not a complete SQL injection defense by itself. Treat it as defense in depth.
-- No database context: it can't check column level permissions, RLS policies, or runtime schema changes.
+`resolver` takes precedence over `defaultSchema`. Metadata schemas such as `pg_catalog` and `information_schema` are never granted access implicitly.
 
-## Error Codes
+### Functions are opt-in
 
-`validate()` returns a single `errorCode` plus a list of `violations`. Invalid policy configuration is reported before SQL parsing.
+`allowedFunctions` is empty by default. Unqualified and schema-qualified calls are intentionally different:
 
-| Code | Description |
-|------|-------------|
-| `PARSE_ERROR` | SQL could not be parsed into an AST. |
-| `UNSUPPORTED_SQL_FEATURE` | Parsed SQL contains features outside the supported subset (fail closed). |
-| `TABLE_NOT_ALLOWED` | A referenced table is not in `policy.allowedTables`, or an unqualified table can't be resolved. |
-| `STATEMENT_NOT_ALLOWED` | Statement type is not allowed (defaults to `select` only). |
-| `FUNCTION_NOT_ALLOWED` | A function call is not in `policy.allowedFunctions`. |
-| `MULTI_STATEMENT_DISABLED` | Query contains multiple statements while `allowMultiStatement` is disabled. |
-| `INVALID_POLICY` | Policy configuration is invalid (for example non-qualified table allowlist entries). |
+```ts
+const policy = {
+  allowedTables: ['public.users'],
+  allowedFunctions: [
+    'lower',                         // allows lower(...)
+    'pg_catalog.current_database',   // allows only this qualified call
+  ],
+};
+```
 
-## Violation Types
+## API
 
-`Violation.type` can be:
+### `validate(sql, policy)`
 
-- `parse`
-- `unsupported`
-- `policy`
-- `statement`
-- `table`
-- `function`
+Never throws. Returns a `ValidationResult`:
+
+```ts
+type ValidationResult = {
+  ok: boolean;
+  violations: Violation[];
+  errorCode?: ErrorCode;
+};
+```
+
+### `assertSafeSql(sql, policy)`
+
+Returns `void` when the query is allowed. Otherwise it throws `SqlValidationError`, which includes `code` and `violations`.
+
+### Error codes
+
+`validate()` returns one primary error code and a list of violations. Invalid policy configuration is reported before parsing SQL.
+
+| Code | Meaning |
+| --- | --- |
+| `PARSE_ERROR` | SQL could not be parsed. |
+| `UNSUPPORTED_SQL_FEATURE` | SQL uses a feature outside the supported subset. |
+| `TABLE_NOT_ALLOWED` | A table is not allowlisted or cannot be resolved. |
+| `STATEMENT_NOT_ALLOWED` | The statement type is not permitted by the policy. |
+| `FUNCTION_NOT_ALLOWED` | A function call is not allowlisted. |
+| `MULTI_STATEMENT_DISABLED` | Multiple statements were supplied while disabled. |
+| `INVALID_POLICY` | The policy configuration is invalid. |
+| `QUERY_TOO_LARGE` | SQL exceeds `maxQueryLength` before parsing. |
+
+Each violation has a `type`, a human-readable `message`, and—when available—a 1-indexed `location`.
+
+## Security model and limits
+
+`sql-guard` is PostgreSQL-focused and validates query shape rather than executing or rewriting SQL. It is designed to be one layer in a larger security model:
+
+1. Generate or receive the SQL.
+2. Validate it with a narrow `sql-guard` policy.
+3. Use parameterized values for all user-controlled data.
+4. Execute with a database role limited to the required permissions.
+5. Keep RLS and application authorization in place.
+
+It cannot determine column-level permissions, evaluate RLS, detect runtime schema changes, or make a database role safer. Other SQL dialects are not supported in v1.
 
 ## License
 
-MIT
+[MIT](./LICENSE)
