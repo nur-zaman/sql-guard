@@ -5,22 +5,27 @@
 <h1 align="center">sql-guard</h1>
 
 <p align="center">
-  <strong>Fail-closed PostgreSQL validation for AI-generated SQL.</strong>
+  <strong>A safety check for AI-generated PostgreSQL queries.</strong>
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/sql-guard"><img src="https://img.shields.io/npm/v/sql-guard?color=22c55e&label=npm" alt="npm version" /></a>
   <a href="https://github.com/nur-zaman/sql-guard/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-0f172a" alt="MIT license" /></a>
   <a href="https://github.com/nur-zaman/sql-guard"><img src="https://img.shields.io/badge/PostgreSQL-AST--validated-38bdf8" alt="PostgreSQL AST validated" /></a>
+  <a href="https://sql-guard.nurzaman.dev"><img src="https://img.shields.io/badge/playground-live-a855f7" alt="Interactive playground" /></a>
 </p>
 
-`sql-guard` parses PostgreSQL SQL into an AST, then checks it against an explicit policy. It is built for the point where an LLM has proposed a query, but **before** your application executes it.
+<p align="center">
+  <a href="https://sql-guard.nurzaman.dev"><strong>▶ Try it in the playground</strong></a>
+</p>
+
+`sql-guard` parses PostgreSQL SQL into an AST and checks it against an explicit policy. Run it after an LLM proposes a query and **before** your application executes it.
 
 It does not rewrite or sanitize SQL. If it cannot confidently validate a query, it denies it.
 
 ## Why sql-guard?
 
-Giving an AI assistant access to a database often means accepting SQL that was composed at runtime. A prompt restriction or regex is not a security boundary. `sql-guard` adds a focused, code-level guardrail:
+Giving an AI assistant access to a database often means accepting SQL that was composed at runtime. A prompt restriction or regex is not a security boundary. `sql-guard` adds a guardrail in code:
 
 - Allow only the tables your feature needs.
 - Default to read-only queries.
@@ -29,7 +34,11 @@ Giving an AI assistant access to a database often means accepting SQL that was c
 - Return structured violations you can log, inspect, or surface safely.
 
 > [!IMPORTANT]
-> `sql-guard` is defense in depth—not a replacement for parameterized queries, least-privilege database roles, row-level security, or application authorization.
+> `sql-guard` is defense in depth, not a replacement for parameterized queries, least-privilege database roles, row-level security, or application authorization.
+
+## Playground
+
+The [**interactive playground**](https://sql-guard.nurzaman.dev) lets you try sql-guard without installing it. Write a query (or generate one from a natural-language question), pick a policy, and see what **passes** validation and what gets **blocked**, with the error code and violations for each. There is no database and no query execution; it only shows how validation behaves.
 
 ## Install
 
@@ -198,11 +207,11 @@ Returns `void` when the query is allowed. Otherwise it throws `SqlValidationErro
 | `INVALID_POLICY` | The policy configuration is invalid. |
 | `QUERY_TOO_LARGE` | SQL exceeds `maxQueryLength` before parsing. |
 
-Each violation has a `type`, a human-readable `message`, and—when available—a 1-indexed `location`.
+Each violation has a `type`, a human-readable `message`, and a 1-indexed `location` when one is available.
 
 ## Security model and limits
 
-`sql-guard` is PostgreSQL-focused and validates query shape rather than executing or rewriting SQL. It is designed to be one layer in a larger security model:
+`sql-guard` is PostgreSQL-focused and validates query shape rather than executing or rewriting SQL. It is one layer in a larger security model:
 
 1. Generate or receive the SQL.
 2. Validate it with a narrow `sql-guard` policy.
